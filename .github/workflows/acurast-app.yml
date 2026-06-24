@@ -1,0 +1,111 @@
+name: Acurast app — build, pin, attest
+
+# Reusable pipeline for a Liskov Acurast app: install -> typecheck/test/build ->
+# IPFS-pin (no-spend) -> GitHub-OIDC artifact-pin attest. Caller example:
+#
+#   jobs:
+#     artifact:
+#       uses: proof-computer/liskov-github-actions/.github/workflows/acurast-app.yml@v1
+#       with: { app-id: uptime-prober, working-directory: uptime-prober }
+#       secrets:
+#         ACURAST_IPFS_URL: ${{ secrets.ACURAST_IPFS_URL }}
+#         ACURAST_IPFS_API_KEY: ${{ secrets.ACURAST_IPFS_API_KEY }}
+
+on:
+  workflow_call:
+    inputs:
+      app-id:
+        description: "Liskov Application id (zip/manifest name + artifact-pin target)."
+        required: true
+        type: string
+      working-directory:
+        description: "App directory."
+        required: false
+        type: string
+        default: "."
+      entrypoint:
+        description: "Entrypoint bundle inside dist/."
+        required: false
+        type: string
+        default: "app.cjs"
+      extra-files:
+        description: "Extra dist/ files to include in the zip (e.g. app.cjs for a stage0 entrypoint)."
+        required: false
+        type: string
+        default: ""
+      node-version:
+        required: false
+        type: string
+        default: "24"
+      smoke:
+        description: "Run `pnpm smoke:bundle`."
+        required: false
+        type: boolean
+        default: false
+      attest:
+        description: "Post the GitHub-OIDC artifact pin after pinning."
+        required: false
+        type: boolean
+        default: true
+      pin-url:
+        description: "Override the artifact-pin URL template."
+        required: false
+        type: string
+        default: ""
+    secrets:
+      ACURAST_IPFS_URL:
+        required: false
+      ACURAST_IPFS_API_KEY:
+        required: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-pin-attest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: pnpm
+          cache-dependency-path: ${{ inputs.working-directory }}/pnpm-lock.yaml
+
+      - name: Install
+        shell: bash
+        working-directory: ${{ inputs.working-directory }}
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck, test, build
+        shell: bash
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          set -euo pipefail
+          pnpm typecheck
+          pnpm test
+          pnpm build
+          if [ "${{ inputs.smoke }}" = "true" ]; then pnpm smoke:bundle; fi
+
+      - name: IPFS pin (no-spend)
+        id: pin
+        uses: proof-computer/liskov-github-actions/actions/ipfs-pin@main
+        with:
+          app-name: ${{ inputs.app-id }}
+          working-directory: ${{ inputs.working-directory }}
+          entrypoint: ${{ inputs.entrypoint }}
+          extra-files: ${{ inputs.extra-files }}
+        env:
+          ACURAST_IPFS_URL: ${{ secrets.ACURAST_IPFS_URL }}
+          ACURAST_IPFS_API_KEY: ${{ secrets.ACURAST_IPFS_API_KEY }}
+
+      - name: Attest artifact pin
+        if: ${{ inputs.attest }}
+        uses: proof-computer/liskov-github-actions/actions/artifact-pin-attest@main
+        with:
+          application-ids: ${{ inputs.app-id }}
+          manifest-path: ${{ steps.pin.outputs.manifest-path }}
+          pin-url: ${{ inputs.pin-url }}

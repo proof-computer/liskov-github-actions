@@ -1,0 +1,3 @@
+node_modules/
+*.log
+# NOTE: actions/*/dist is INTENTIONALLY committed — consumers run the action as-is.

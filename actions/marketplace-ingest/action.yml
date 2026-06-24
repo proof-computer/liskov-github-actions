@@ -1,0 +1,17 @@
+name: "Liskov marketplace ingest"
+description: "Mint a GitHub OIDC token and trigger liskov-rs to reconcile the marketplace catalog to this commit (ADR-0006 §A1). Endpoint pending."
+inputs:
+  ingest-url:
+    description: "Override the ingest endpoint (else LISKOV_MARKETPLACE_INGEST_URL env, else prod default)."
+    required: false
+    default: ""
+  audience:
+    description: "OIDC token audience."
+    required: false
+    default: "liskov-marketplace-ingest"
+outputs:
+  result:
+    description: "JSON reconcile summary from the server, if returned."
+runs:
+  using: "node20"
+  main: "dist/index.js"

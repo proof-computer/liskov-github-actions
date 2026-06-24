@@ -1,0 +1,28 @@
+name: Release
+
+# Push a semver tag (vX.Y.Z) to move the major tag (vX) to it, so consumers can
+# pin `@v1` and get the latest v1.x.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  move-major-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Move major tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          MAJOR="${TAG%%.*}"   # v1.2.3 -> v1
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -f "$MAJOR" "$TAG"
+          git push -f origin "refs/tags/$MAJOR"
+          echo "moved $MAJOR -> $TAG"

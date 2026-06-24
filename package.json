@@ -1,0 +1,32 @@
+{
+  "name": "liskov-github-actions",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Reusable GitHub Actions + workflows for Liskov CI: Acurast app build -> IPFS-pin -> GitHub-OIDC artifact-pin attest, and marketplace catalog OIDC ingest. Plan: liskov-agent-orchestrator BKLG-20260624-jn9l.",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsx scripts/build-actions.ts",
+    "check:dist": "tsx scripts/build-actions.ts && git diff --exit-code -- actions"
+  },
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "adm-zip": "^0.5.17"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.8",
+    "@types/node": "^24.10.1",
+    "esbuild": "^0.28.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

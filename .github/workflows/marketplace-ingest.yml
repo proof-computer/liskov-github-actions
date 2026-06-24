@@ -1,0 +1,35 @@
+name: Marketplace catalog ingest
+
+# Reusable workflow for marketplace catalog repos (offerings / admittance): on push,
+# mint a GitHub OIDC token and trigger liskov-rs to reconcile the catalog to this
+# commit (ADR-0006 §A1). Endpoint pending (schema-spec Part 2). Caller example:
+#
+#   jobs:
+#     publish:
+#       uses: proof-computer/liskov-github-actions/.github/workflows/marketplace-ingest.yml@v1
+
+on:
+  workflow_call:
+    inputs:
+      ingest-url:
+        required: false
+        type: string
+        default: ""
+      audience:
+        required: false
+        type: string
+        default: "liskov-marketplace-ingest"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify catalog ingest
+        uses: proof-computer/liskov-github-actions/actions/marketplace-ingest@main
+        with:
+          ingest-url: ${{ inputs.ingest-url }}
+          audience: ${{ inputs.audience }}

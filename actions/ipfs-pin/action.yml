@@ -1,0 +1,40 @@
+name: "Liskov Acurast IPFS pin"
+description: "Build the Acurast deploy zip from dist/ and pin it (no-spend) to the Acurast IPFS proxy; writes a script manifest."
+inputs:
+  app-name:
+    description: "Application name (zip manifest name + script-manifest kind)."
+    required: true
+  working-directory:
+    description: "Directory containing dist/ (and where the manifest is written)."
+    required: false
+    default: "."
+  entrypoint:
+    description: "Entrypoint bundle filename inside dist/."
+    required: false
+    default: "app.cjs"
+  extra-files:
+    description: "Additional dist/ files to include in the zip (newline/comma separated), e.g. app.cjs when entrypoint is a stage0 bundle.cjs."
+    required: false
+    default: ""
+  restart-policy:
+    description: "Acurast manifest restartPolicy."
+    required: false
+    default: "onFailure"
+  ipfs-endpoint:
+    description: "Override the Acurast IPFS proxy endpoint (else ACURAST_IPFS_URL env, else the default proxy)."
+    required: false
+    default: ""
+  manifest-name:
+    description: "Output manifest filename (default <app-name>-script-manifest.json)."
+    required: false
+    default: ""
+outputs:
+  cid:
+    description: "The pinned ipfs:// URI."
+  digest:
+    description: "sha256:<hex> of the uploaded zip."
+  manifest-path:
+    description: "Path to the written script manifest (feed to artifact-pin-attest)."
+runs:
+  using: "node20"
+  main: "dist/index.js"

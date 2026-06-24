@@ -1,0 +1,23 @@
+name: "Liskov CI setup"
+description: "Set up Node + pnpm and install dependencies for a Liskov repo. (Caller does the checkout.)"
+inputs:
+  node-version:
+    description: "Node version."
+    required: false
+    default: "24"
+  working-directory:
+    description: "Directory containing package.json / pnpm-lock.yaml."
+    required: false
+    default: "."
+runs:
+  using: "composite"
+  steps:
+    - uses: pnpm/action-setup@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: pnpm
+        cache-dependency-path: ${{ inputs.working-directory }}/pnpm-lock.yaml
+    - shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: pnpm install --frozen-lockfile
