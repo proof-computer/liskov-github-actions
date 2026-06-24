@@ -37,4 +37,4 @@ outputs:
     description: "Path to the written script manifest (feed to artifact-pin-attest)."
 runs:
   using: "node20"
-  main: "dist/index.js"
+  main: "dist/index.cjs"

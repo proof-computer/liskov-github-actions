@@ -9,9 +9,12 @@ import { build } from "esbuild";
 const JS_ACTIONS = ["ipfs-pin", "artifact-pin-attest", "marketplace-ingest"];
 
 for (const action of JS_ACTIONS) {
+  // Emit .cjs so Node always treats the bundle as CommonJS — the repo root
+  // package.json is `type: module`, which would otherwise make a `.js` CJS bundle
+  // fail with "require is not defined in ES module scope".
   await build({
     entryPoints: [path.join("actions", action, "src", "index.ts")],
-    outfile: path.join("actions", action, "dist", "index.js"),
+    outfile: path.join("actions", action, "dist", "index.cjs"),
     bundle: true,
     platform: "node",
     target: "node20",
@@ -20,5 +23,5 @@ for (const action of JS_ACTIONS) {
     sourcemap: false,
     legalComments: "none"
   });
-  console.log(`built actions/${action}/dist/index.js`);
+  console.log(`built actions/${action}/dist/index.cjs`);
 }
