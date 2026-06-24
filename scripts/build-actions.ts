@@ -17,7 +17,7 @@ for (const action of JS_ACTIONS) {
     outfile: path.join("actions", action, "dist", "index.cjs"),
     bundle: true,
     platform: "node",
-    target: "node20",
+    target: "node24",
     format: "cjs",
     minify: false,
     sourcemap: false,

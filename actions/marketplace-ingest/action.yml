@@ -13,5 +13,5 @@ outputs:
   result:
     description: "JSON reconcile summary from the server, if returned."
 runs:
-  using: "node20"
+  using: "node24"
   main: "dist/index.cjs"

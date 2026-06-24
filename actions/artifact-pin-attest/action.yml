@@ -21,5 +21,5 @@ outputs:
   digest:
     description: "The attested bundle digest."
 runs:
-  using: "node20"
+  using: "node24"
   main: "dist/index.cjs"
