@@ -5,6 +5,10 @@ inputs:
     description: "Node version."
     required: false
     default: "24"
+  pnpm-version:
+    description: "pnpm version (set explicitly for monorepos where the repo root lacks a packageManager field)."
+    required: false
+    default: "10"
   working-directory:
     description: "Directory containing package.json / pnpm-lock.yaml."
     required: false
@@ -13,6 +17,8 @@ runs:
   using: "composite"
   steps:
     - uses: pnpm/action-setup@v4
+      with:
+        version: ${{ inputs.pnpm-version }}
     - uses: actions/setup-node@v4
       with:
         node-version: ${{ inputs.node-version }}
