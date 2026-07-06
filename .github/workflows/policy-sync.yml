@@ -1,0 +1,53 @@
+name: Liskov policy sync
+
+# Reusable one-liner: when a repo's .liskov policy file changes on main, import
+# (and publish) it into Liskov via the GitHub-OIDC policy-import route — no
+# manual `proof liskov application import` needed. Caller example:
+#
+#   on:
+#     push: { branches: [main], paths: ['.liskov/**'] }
+#   permissions: { id-token: write, contents: read }
+#   jobs:
+#     policy:
+#       uses: proof-computer/liskov-github-actions/.github/workflows/policy-sync.yml@main
+#       with:
+#         application-id: slipway-diagnostic
+#         policy-path: .liskov/slipway-diagnostic.policy.json
+
+on:
+  workflow_call:
+    inputs:
+      application-id:
+        description: "Liskov Application id the policy belongs to."
+        required: true
+        type: string
+      policy-path:
+        description: "Path to the policy JSON in the repo."
+        required: true
+        type: string
+      publish:
+        description: "Publish the imported version as the active policy."
+        required: false
+        type: boolean
+        default: true
+      import-url:
+        description: "Override the policy-import URL template."
+        required: false
+        type: string
+        default: ""
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Import policy into Liskov
+        uses: proof-computer/liskov-github-actions/actions/policy-import@main
+        with:
+          application-id: ${{ inputs.application-id }}
+          policy-path: ${{ inputs.policy-path }}
+          publish: ${{ inputs.publish }}
+          import-url: ${{ inputs.import-url }}

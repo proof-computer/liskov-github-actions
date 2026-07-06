@@ -1,0 +1,29 @@
+name: "Liskov policy import"
+description: "Mint a GitHub OIDC token and POST the repo's policy file to liskov-rs as a new (optionally published) policy version."
+inputs:
+  application-id:
+    description: "Liskov Application id the policy belongs to."
+    required: true
+  policy-path:
+    description: "Path to the policy JSON in the checkout (e.g. .liskov/<app>.policy.json)."
+    required: true
+  publish:
+    description: "Publish the imported version as the active policy (\"true\"/\"false\")."
+    required: false
+    default: "true"
+  import-url:
+    description: "Policy-import URL template ({applicationId} substituted). Defaults to the prod liskov-rs endpoint (or LISKOV_POLICY_IMPORT_URL env)."
+    required: false
+    default: ""
+  audience:
+    description: "OIDC token audience."
+    required: false
+    default: "slipway-artifact-pin"
+outputs:
+  policy-version:
+    description: "The imported (and published, when publish=true) policyVersionId."
+  document-digest:
+    description: "The imported policy document digest."
+runs:
+  using: "node24"
+  main: "dist/index.cjs"

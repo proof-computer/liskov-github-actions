@@ -46,6 +46,28 @@ Mints an OIDC token and tells liskov-rs to reconcile the catalog to this commit.
 `/api/marketplace/ingest` endpoint is not built yet** (catalog schema spec, Part 2) —
 this is ready for it.
 
+### `policy-sync.yml` — policy file → imported (published) policy version
+
+```yaml
+# .github/workflows/liskov-policy.yml in an app repo
+on:
+  push: { branches: [main], paths: ['.liskov/**'] }
+permissions: { id-token: write, contents: read }
+jobs:
+  policy:
+    uses: proof-computer/liskov-github-actions/.github/workflows/policy-sync.yml@main
+    with:
+      application-id: slipway-diagnostic
+      policy-path: .liskov/slipway-diagnostic.policy.json
+      # publish: false        # import as a draft instead of activating
+```
+
+Checks out the repo, mints an OIDC token, and POSTs the policy document to
+`POST /api/applications/<id>/policy-imports/github`. The server verifies the token,
+requires the Application to already be bound to THIS repository, pins the recorded
+`source.commit` from the **verified** `sha` claim (auto-imports are commit-pinned by
+construction), and imports + publishes the new policy version.
+
 ## À-la-carte actions
 
 Compose your own job from these (`uses: proof-computer/liskov-github-actions/actions/<name>@v1`):
@@ -57,6 +79,7 @@ Compose your own job from these (`uses: proof-computer/liskov-github-actions/act
 | `ipfs-pin` | JS | build the Acurast deploy zip from `dist/`, pin no-spend → `cid`/`digest`/`manifest-path` |
 | `artifact-pin-attest` | JS | OIDC → `POST /api/applications/<id>/artifact-pins/github` |
 | `marketplace-ingest` | JS | OIDC → `POST /api/marketplace/ingest` |
+| `policy-import` | JS | OIDC → `POST /api/applications/<id>/policy-imports/github` (import + publish the repo's policy file) |
 
 ## Versioning
 

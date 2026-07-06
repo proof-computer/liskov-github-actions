@@ -6,7 +6,7 @@
 import path from "node:path";
 import { build } from "esbuild";
 
-const JS_ACTIONS = ["ipfs-pin", "artifact-pin-attest", "marketplace-ingest"];
+const JS_ACTIONS = ["ipfs-pin", "artifact-pin-attest", "marketplace-ingest", "policy-import"];
 
 for (const action of JS_ACTIONS) {
   // Emit .cjs so Node always treats the bundle as CommonJS — the repo root
