@@ -6,6 +6,8 @@
 import { readFile } from "node:fs/promises";
 import * as core from "@actions/core";
 
+import { artifactProvenanceFromOidcToken } from "./oidc.js";
+
 const DEFAULT_URL = "https://liskov.proof.computer/api/applications/{applicationId}/artifact-pins/github";
 
 async function run(): Promise<void> {
@@ -22,6 +24,7 @@ async function run(): Promise<void> {
   if (!bundleDigest) throw new Error(`Manifest ${manifestPath} is missing scriptHash/bundleSha256`);
 
   const token = await core.getIDToken(audience);
+  const oidcProvenance = artifactProvenanceFromOidcToken(token);
 
   for (const applicationId of applicationIds) {
     const url = urlTemplate.replaceAll("{applicationId}", encodeURIComponent(applicationId));
@@ -33,11 +36,11 @@ async function run(): Promise<void> {
       generatedAt: str(manifest, "generatedAt") ?? new Date().toISOString(),
       encryption: { mode: "none" },
       provenance: {
-        repository: reqEnv("GITHUB_REPOSITORY"),
-        ref: reqEnv("GITHUB_REF"),
-        sha: reqEnv("GITHUB_SHA"),
+        repository: oidcProvenance.repository,
+        ref: oidcProvenance.ref,
+        sha: oidcProvenance.sha,
         workflow: process.env.GITHUB_WORKFLOW,
-        workflow_ref: process.env.GITHUB_WORKFLOW_REF,
+        workflow_ref: oidcProvenance.workflowRef,
         run_id: process.env.GITHUB_RUN_ID,
         run_attempt: process.env.GITHUB_RUN_ATTEMPT,
         actor: process.env.GITHUB_ACTOR,
@@ -65,10 +68,4 @@ function str(record: Record<string, unknown>, field: string): string | undefined
   const value = record[field];
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
-function reqEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`${name} is required`);
-  return value;
-}
-
 run().catch((error) => core.setFailed(error instanceof Error ? error.message : String(error)));

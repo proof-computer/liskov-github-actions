@@ -19815,6 +19815,39 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
 // actions/artifact-pin-attest/src/index.ts
 var import_promises = require("node:fs/promises");
 var core = __toESM(require_core(), 1);
+
+// actions/artifact-pin-attest/src/oidc.ts
+function artifactProvenanceFromOidcToken(token) {
+  const parts = token.split(".");
+  if (parts.length !== 3 || !parts[1]) {
+    throw new Error("GitHub OIDC token is not a JWT");
+  }
+  let claims;
+  try {
+    claims = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+  } catch {
+    throw new Error("GitHub OIDC token payload is invalid");
+  }
+  if (!claims || typeof claims !== "object" || Array.isArray(claims)) {
+    throw new Error("GitHub OIDC token payload must be an object");
+  }
+  const record = claims;
+  return {
+    repository: requiredClaim(record, "repository"),
+    ref: requiredClaim(record, "ref"),
+    sha: requiredClaim(record, "sha"),
+    workflowRef: requiredClaim(record, "workflow_ref")
+  };
+}
+function requiredClaim(claims, name) {
+  const value = claims[name];
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`GitHub OIDC token is missing ${name}`);
+  }
+  return value;
+}
+
+// actions/artifact-pin-attest/src/index.ts
 var DEFAULT_URL = "https://liskov.proof.computer/api/applications/{applicationId}/artifact-pins/github";
 async function run() {
   const applicationIds = splitCsv(core.getInput("application-ids", { required: true }));
@@ -19828,6 +19861,7 @@ async function run() {
   if (!scriptCid) throw new Error(`Manifest ${manifestPath} is missing scriptIpfs`);
   if (!bundleDigest) throw new Error(`Manifest ${manifestPath} is missing scriptHash/bundleSha256`);
   const token = await core.getIDToken(audience);
+  const oidcProvenance = artifactProvenanceFromOidcToken(token);
   for (const applicationId of applicationIds) {
     const url = urlTemplate.replaceAll("{applicationId}", encodeURIComponent(applicationId));
     const body = {
@@ -19838,11 +19872,11 @@ async function run() {
       generatedAt: str(manifest, "generatedAt") ?? (/* @__PURE__ */ new Date()).toISOString(),
       encryption: { mode: "none" },
       provenance: {
-        repository: reqEnv("GITHUB_REPOSITORY"),
-        ref: reqEnv("GITHUB_REF"),
-        sha: reqEnv("GITHUB_SHA"),
+        repository: oidcProvenance.repository,
+        ref: oidcProvenance.ref,
+        sha: oidcProvenance.sha,
         workflow: process.env.GITHUB_WORKFLOW,
-        workflow_ref: process.env.GITHUB_WORKFLOW_REF,
+        workflow_ref: oidcProvenance.workflowRef,
         run_id: process.env.GITHUB_RUN_ID,
         run_attempt: process.env.GITHUB_RUN_ATTEMPT,
         actor: process.env.GITHUB_ACTOR,
@@ -19867,10 +19901,5 @@ function splitCsv(value) {
 function str(record, field) {
   const value = record[field];
   return typeof value === "string" && value.length > 0 ? value : void 0;
-}
-function reqEnv(name) {
-  const value = process.env[name];
-  if (!value) throw new Error(`${name} is required`);
-  return value;
 }
 run().catch((error) => core.setFailed(error instanceof Error ? error.message : String(error)));
