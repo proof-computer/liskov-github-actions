@@ -19834,9 +19834,10 @@ function artifactPinBindings(manifest, applicationId) {
     throw new Error("IPFS artifact pins require a build release with kind ipfs_bundle");
   }
   const encryption = recordField(artifact, "encryption");
-  const encryptionMode = encryption.mode === "none" ? "none" : encryption.mode === "aes256_gcm" ? "aes-256-gcm-bundle-v1" : void 0;
-  if (!encryptionMode) {
-    throw new Error("build release encryption mode must be none or aes256_gcm");
+  if (encryption.mode !== "none") {
+    throw new Error(
+      "the reusable ipfs-pin action produces unencrypted bundles; the build release must require encryption mode none"
+    );
   }
   const normalizedRelease = structuredClone(release);
   const builder = recordField(normalizedRelease, "builder");
@@ -19852,7 +19853,7 @@ function artifactPinBindings(manifest, applicationId) {
       applicationId,
       release: normalizedRelease
     }),
-    encryptionMode
+    encryptionMode: "none"
   };
 }
 function canonicalDigest(value) {

@@ -10,7 +10,7 @@ const manifest = {
   metadata: { labels: ["ordered", "evidence"] },
   release: {
     mode: "build",
-    artifact: { kind: "ipfs_bundle", encryption: { mode: "aes256_gcm" } },
+    artifact: { kind: "ipfs_bundle", encryption: { mode: "none" } },
     builder: {
       kind: "github",
       repository: "proof-computer/example",
@@ -38,7 +38,7 @@ test("artifact evidence binds the exact manifest and normalized release intent",
   assert.match(first.releaseIntentDigest, /^[0-9a-f]{64}$/u);
   assert.notEqual(first.authoredDigest, reordered.authoredDigest);
   assert.equal(first.releaseIntentDigest, reordered.releaseIntentDigest);
-  assert.equal(first.encryptionMode, "aes-256-gcm-bundle-v1");
+  assert.equal(first.encryptionMode, "none");
 });
 
 test("artifact evidence rejects pinned or wrong-kind release arms", () => {
@@ -66,5 +66,21 @@ test("artifact evidence rejects pinned or wrong-kind release arms", () => {
       }
     }, "example"),
     /kind ipfs_bundle/u
+  );
+});
+
+test("artifact evidence rejects encrypted requirements for the unencrypted pin action", () => {
+  assert.throws(
+    () => artifactPinBindings({
+      ...manifest,
+      release: {
+        ...manifest.release,
+        artifact: {
+          kind: "ipfs_bundle",
+          encryption: { mode: "aes256_gcm" }
+        }
+      }
+    }, "example"),
+    /produces unencrypted bundles/u
   );
 });
