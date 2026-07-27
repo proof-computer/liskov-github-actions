@@ -22,6 +22,7 @@ jobs:
       app-id: uptime-prober
       working-directory: uptime-prober      # default "."
       entrypoint: app.cjs                    # default; use bundle.cjs + extra-files: app.cjs for a stage0 app
+      authored-manifest-path: uptime-prober/.liskov/uptime-prober.policy.json
     secrets:
       ACURAST_IPFS_URL: ${{ secrets.ACURAST_IPFS_URL }}
       ACURAST_IPFS_API_KEY: ${{ secrets.ACURAST_IPFS_API_KEY }}
@@ -29,8 +30,10 @@ jobs:
 
 Runs `pnpm install --frozen-lockfile → typecheck → test → build` (optional `smoke`),
 pins the Acurast deploy zip to IPFS **no-spend**, and posts a **GitHub-OIDC** artifact
-pin to liskov-rs. Inputs: `app-id` (required), `working-directory`, `entrypoint`,
-`extra-files`, `node-version`, `smoke`, `attest`, `pin-url`.
+pin bound to the exact authored and release-intent digests. Inputs: `app-id` and
+`authored-manifest-path` (required), `working-directory`, `entrypoint`,
+`extra-files`, `node-version`, `smoke`, `attest`, `pin-url`. The attest action
+returns Liskov's deterministic `artifact-version-id`.
 
 ### `marketplace-ingest.yml` — catalog OIDC push (ADR-0006 §A1)
 
@@ -46,7 +49,7 @@ Mints an OIDC token and tells liskov-rs to reconcile the catalog to this commit.
 `/api/marketplace/ingest` endpoint is not built yet** (catalog schema spec, Part 2) —
 this is ready for it.
 
-### `policy-sync.yml` — policy file → imported (published) policy version
+### `policy-sync.yml` — authored manifest → imported draft
 
 ```yaml
 # .github/workflows/liskov-policy.yml in an app repo
@@ -54,19 +57,18 @@ on:
   push: { branches: [main], paths: ['.liskov/**'] }
 permissions: { id-token: write, contents: read }
 jobs:
-  policy:
+  manifest:
     uses: proof-computer/liskov-github-actions/.github/workflows/policy-sync.yml@main
     with:
       application-id: slipway-diagnostic
-      policy-path: .liskov/slipway-diagnostic.policy.json
-      # publish: false        # import as a draft instead of activating
+      manifest-path: .liskov/slipway-diagnostic.policy.json
 ```
 
-Checks out the repo, mints an OIDC token, and POSTs the policy document to
+Checks out the repo, mints an OIDC token, and POSTs the authored manifest to
 `POST /api/applications/<id>/policy-imports/github`. The server verifies the token,
 requires the Application to already be bound to THIS repository, pins the recorded
 `source.commit` from the **verified** `sha` claim (auto-imports are commit-pinned by
-construction), and imports + publishes the new policy version.
+construction), and imports a draft. Publication and artifact selection are separate.
 
 ## À-la-carte actions
 
@@ -79,7 +81,7 @@ Compose your own job from these (`uses: proof-computer/liskov-github-actions/act
 | `ipfs-pin` | JS | build the Acurast deploy zip from `dist/`, pin no-spend → `cid`/`digest`/`manifest-path` |
 | `artifact-pin-attest` | JS | OIDC → `POST /api/applications/<id>/artifact-pins/github` |
 | `marketplace-ingest` | JS | OIDC → `POST /api/marketplace/ingest` |
-| `policy-import` | JS | OIDC → `POST /api/applications/<id>/policy-imports/github` (import + publish the repo's policy file) |
+| `policy-import` | JS | OIDC → `POST /api/applications/<id>/policy-imports/github` (import the repo's authored manifest as a draft) |
 
 ## Versioning
 

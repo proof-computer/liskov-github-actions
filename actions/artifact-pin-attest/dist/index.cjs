@@ -3544,9 +3544,9 @@ var require_constants2 = __commonJS({
       }
     })();
     var channel;
-    var structuredClone = globalThis.structuredClone ?? // https://github.com/nodejs/node/blob/b27ae24dcc4251bad726d9d84baf678d1f707fed/lib/internal/structured_clone.js
+    var structuredClone2 = globalThis.structuredClone ?? // https://github.com/nodejs/node/blob/b27ae24dcc4251bad726d9d84baf678d1f707fed/lib/internal/structured_clone.js
     // structuredClone was added in v17.0.0, but fetch supports v16.8
-    function structuredClone2(value, options = void 0) {
+    function structuredClone3(value, options = void 0) {
       if (arguments.length === 0) {
         throw new TypeError("missing argument");
       }
@@ -3560,7 +3560,7 @@ var require_constants2 = __commonJS({
     };
     module2.exports = {
       DOMException: DOMException2,
-      structuredClone,
+      structuredClone: structuredClone2,
       subresource,
       forbiddenMethods,
       requestBodyHeader,
@@ -5265,7 +5265,7 @@ var require_body = __commonJS({
     var { FormData } = require_formdata();
     var { kState } = require_symbols2();
     var { webidl } = require_webidl();
-    var { DOMException: DOMException2, structuredClone } = require_constants2();
+    var { DOMException: DOMException2, structuredClone: structuredClone2 } = require_constants2();
     var { Blob: Blob2, File: NativeFile } = require("buffer");
     var { kBodyUsed } = require_symbols();
     var assert = require("assert");
@@ -5429,7 +5429,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
     }
     function cloneBody(body) {
       const [out1, out2] = body.stream.tee();
-      const out2Clone = structuredClone(out2, { transfer: [out2] });
+      const out2Clone = structuredClone2(out2, { transfer: [out2] });
       const [, finalClone] = out2Clone.tee();
       body.stream = out1;
       return {
@@ -19816,6 +19816,66 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
 var import_promises = require("node:fs/promises");
 var core = __toESM(require_core(), 1);
 
+// actions/artifact-pin-attest/src/manifest.ts
+var import_node_crypto = require("node:crypto");
+function artifactPinBindings(manifest, applicationId) {
+  if (manifest.schema !== "proof.liskov.application-manifest" || manifest.schemaVersion !== 4) {
+    throw new Error("authored manifest must declare proof.liskov.application-manifest v4");
+  }
+  if (manifest.applicationId !== applicationId) {
+    throw new Error(`authored manifest applicationId must be ${applicationId}`);
+  }
+  const release = recordField(manifest, "release");
+  if (release.mode !== "build") {
+    throw new Error("artifact pins require an authored build release");
+  }
+  const artifact = recordField(release, "artifact");
+  if (artifact.kind !== "ipfs_bundle") {
+    throw new Error("IPFS artifact pins require a build release with kind ipfs_bundle");
+  }
+  const encryption = recordField(artifact, "encryption");
+  const encryptionMode = encryption.mode === "none" ? "none" : encryption.mode === "aes256_gcm" ? "aes-256-gcm-bundle-v1" : void 0;
+  if (!encryptionMode) {
+    throw new Error("build release encryption mode must be none or aes256_gcm");
+  }
+  const normalizedRelease = structuredClone(release);
+  const builder = recordField(normalizedRelease, "builder");
+  if (!Array.isArray(builder.allowedRefs)) {
+    throw new Error("GitHub builder allowedRefs must be an array");
+  }
+  builder.allowedRefs = [...builder.allowedRefs].sort();
+  return {
+    authoredDigest: canonicalDigest(manifest),
+    releaseIntentDigest: canonicalDigest({
+      schema: "proof.liskov.release-intent",
+      schemaVersion: 4,
+      applicationId,
+      release: normalizedRelease
+    }),
+    encryptionMode
+  };
+}
+function canonicalDigest(value) {
+  return (0, import_node_crypto.createHash)("sha256").update(canonicalJson(value)).digest("hex");
+}
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    const record = value;
+    return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(",")}}`;
+  }
+  const serialized = JSON.stringify(value);
+  if (serialized === void 0) throw new Error("value is not canonical JSON");
+  return serialized;
+}
+function recordField(record, field) {
+  const value = record[field];
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${field} must be an object`);
+  }
+  return value;
+}
+
 // actions/artifact-pin-attest/src/oidc.ts
 function artifactProvenanceFromOidcToken(token) {
   const parts = token.split(".");
@@ -19850,53 +19910,60 @@ function requiredClaim(claims, name) {
 // actions/artifact-pin-attest/src/index.ts
 var DEFAULT_URL = "https://liskov.proof.computer/api/applications/{applicationId}/artifact-pins/github";
 async function run() {
-  const applicationIds = splitCsv(core.getInput("application-ids", { required: true }));
-  if (applicationIds.length === 0) throw new Error("application-ids must include at least one Application id");
-  const manifestPath = core.getInput("manifest-path", { required: true });
+  const applicationId = core.getInput("application-id", { required: true }).trim();
+  const buildManifestPath = core.getInput("build-manifest-path", { required: true });
+  const authoredManifestPath = core.getInput("authored-manifest-path", { required: true });
   const audience = core.getInput("audience") || "slipway-artifact-pin";
   const urlTemplate = core.getInput("pin-url") || process.env.SLIPWAY_ARTIFACT_PIN_URL || DEFAULT_URL;
-  const manifest = JSON.parse(await (0, import_promises.readFile)(manifestPath, "utf8"));
-  const scriptCid = str(manifest, "scriptIpfs") ?? str(manifest, "scriptCid");
-  const bundleDigest = str(manifest, "scriptHash") ?? str(manifest, "bundleSha256");
-  if (!scriptCid) throw new Error(`Manifest ${manifestPath} is missing scriptIpfs`);
-  if (!bundleDigest) throw new Error(`Manifest ${manifestPath} is missing scriptHash/bundleSha256`);
+  const buildManifest = JSON.parse(await (0, import_promises.readFile)(buildManifestPath, "utf8"));
+  const authoredManifest = JSON.parse(
+    await (0, import_promises.readFile)(authoredManifestPath, "utf8")
+  );
+  const bindings = artifactPinBindings(authoredManifest, applicationId);
+  const scriptCid = str(buildManifest, "scriptIpfs") ?? str(buildManifest, "scriptCid");
+  const bundleDigest = str(buildManifest, "scriptHash") ?? str(buildManifest, "bundleSha256");
+  if (!scriptCid) throw new Error(`Manifest ${buildManifestPath} is missing scriptIpfs`);
+  if (!bundleDigest) throw new Error(`Manifest ${buildManifestPath} is missing scriptHash/bundleSha256`);
   const token = await core.getIDToken(audience);
   const oidcProvenance = artifactProvenanceFromOidcToken(token);
-  for (const applicationId of applicationIds) {
-    const url = urlTemplate.replaceAll("{applicationId}", encodeURIComponent(applicationId));
-    const body = {
-      domain: "proof.slipway.github-artifact-pin.v1",
-      applicationId,
-      scriptCid,
-      bundleDigest,
-      generatedAt: str(manifest, "generatedAt") ?? (/* @__PURE__ */ new Date()).toISOString(),
-      encryption: { mode: "none" },
-      provenance: {
-        repository: oidcProvenance.repository,
-        ref: oidcProvenance.ref,
-        sha: oidcProvenance.sha,
-        workflow: process.env.GITHUB_WORKFLOW,
-        workflow_ref: oidcProvenance.workflowRef,
-        run_id: process.env.GITHUB_RUN_ID,
-        run_attempt: process.env.GITHUB_RUN_ATTEMPT,
-        actor: process.env.GITHUB_ACTOR,
-        event_name: process.env.GITHUB_EVENT_NAME
-      }
-    };
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { authorization: `Bearer ${token}`, accept: "application/json", "content-type": "application/json" },
-      body: JSON.stringify(body)
-    });
-    const responseText = await response.text();
-    if (!response.ok) throw new Error(`Artifact pin post failed for ${applicationId}: ${response.status} ${responseText}`);
-    core.info(`Attested ${applicationId} -> ${scriptCid}`);
+  const url = urlTemplate.replaceAll("{applicationId}", encodeURIComponent(applicationId));
+  const body = {
+    domain: "proof.slipway.github-artifact-pin.v1",
+    applicationId,
+    scriptCid,
+    bundleDigest,
+    authoredDigest: bindings.authoredDigest,
+    releaseIntentDigest: bindings.releaseIntentDigest,
+    generatedAt: str(buildManifest, "generatedAt") ?? (/* @__PURE__ */ new Date()).toISOString(),
+    encryption: { mode: bindings.encryptionMode },
+    provenance: {
+      repository: oidcProvenance.repository,
+      ref: oidcProvenance.ref,
+      sha: oidcProvenance.sha,
+      workflow: process.env.GITHUB_WORKFLOW,
+      workflow_ref: oidcProvenance.workflowRef,
+      run_id: process.env.GITHUB_RUN_ID,
+      run_attempt: process.env.GITHUB_RUN_ATTEMPT,
+      actor: process.env.GITHUB_ACTOR,
+      event_name: process.env.GITHUB_EVENT_NAME
+    }
+  };
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, accept: "application/json", "content-type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  const responseText = await response.text();
+  if (!response.ok) throw new Error(`Artifact pin post failed for ${applicationId}: ${response.status} ${responseText}`);
+  const result = responseText ? JSON.parse(responseText) : {};
+  const artifactVersionId = str(result, "artifactVersionId");
+  if (!artifactVersionId) {
+    throw new Error(`Artifact pin response for ${applicationId} omitted artifactVersionId`);
   }
+  core.info(`Attested ${applicationId} -> ${artifactVersionId}`);
   core.setOutput("cid", scriptCid);
   core.setOutput("digest", bundleDigest);
-}
-function splitCsv(value) {
-  return value.split(",").map((s) => s.trim()).filter(Boolean);
+  core.setOutput("artifact-version-id", artifactVersionId);
 }
 function str(record, field) {
   const value = record[field];

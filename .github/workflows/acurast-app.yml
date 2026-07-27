@@ -33,6 +33,10 @@ on:
         required: false
         type: string
         default: ""
+      authored-manifest-path:
+        description: "Path to the application-manifest V4 that authorizes this build."
+        required: true
+        type: string
       node-version:
         required: false
         type: string
@@ -113,6 +117,7 @@ jobs:
         if: ${{ inputs.attest }}
         uses: proof-computer/liskov-github-actions/actions/artifact-pin-attest@main
         with:
-          application-ids: ${{ inputs.app-id }}
-          manifest-path: ${{ steps.pin.outputs.manifest-path }}
+          application-id: ${{ inputs.app-id }}
+          build-manifest-path: ${{ steps.pin.outputs.manifest-path }}
+          authored-manifest-path: ${{ inputs.authored-manifest-path }}
           pin-url: ${{ inputs.pin-url }}

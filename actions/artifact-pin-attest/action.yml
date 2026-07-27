@@ -1,11 +1,14 @@
 name: "Liskov artifact-pin attest"
 description: "Mint a GitHub OIDC token and POST a GitHub-attested artifact pin to liskov-rs for one or more Applications."
 inputs:
-  application-ids:
-    description: "Comma-separated Liskov Application id(s) to attest the pin against."
+  application-id:
+    description: "Liskov Application id to attest the pin against."
     required: true
-  manifest-path:
+  build-manifest-path:
     description: "Path to the script manifest produced by the ipfs-pin action."
+    required: true
+  authored-manifest-path:
+    description: "Path to the exact authored application-manifest V4 used for this build."
     required: true
   pin-url:
     description: "Artifact-pin URL template ({applicationId} substituted). Defaults to the prod liskov-rs endpoint (or SLIPWAY_ARTIFACT_PIN_URL env)."
@@ -20,6 +23,8 @@ outputs:
     description: "The attested script CID."
   digest:
     description: "The attested bundle digest."
+  artifact-version-id:
+    description: "The deterministic artifact-version ID returned by Liskov."
 runs:
   using: "node24"
   main: "dist/index.cjs"
