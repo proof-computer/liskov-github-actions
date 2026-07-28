@@ -70,6 +70,33 @@ requires the Application to already be bound to THIS repository, pins the record
 `source.commit` from the **verified** `sha` claim (auto-imports are commit-pinned by
 construction), and imports a draft. Publication and artifact selection are separate.
 
+### `runtime-image.yml` — manifest import → scoped image upload → bootstrap
+
+```yaml
+on:
+  workflow_dispatch:
+    inputs:
+      image_url: { description: Pinned PRoot image URL, required: true, type: string }
+      expected_sha256: { description: Optional SHA-256, required: false, type: string }
+permissions: { id-token: write, contents: read }
+jobs:
+  runtime-image:
+    uses: proof-computer/liskov-github-actions/.github/workflows/runtime-image.yml@v1
+    with:
+      application-id: my-app
+      manifest-path: .liskov/my-app.json
+      image-url: ${{ inputs.image_url }}
+      expected-sha256: ${{ inputs.expected_sha256 }}
+```
+
+Imports the exact V4 runtime-image build manifest, downloads the supplied image,
+locally verifies its SHA-256 when provided, and passes the server-authoritative
+`authoredDigest` and `releaseIntentDigest` to a scoped upload action. Liskov verifies
+that exact binding before creating one-object Tigris credentials; the action uploads
+without exposing the credentials, remints OIDC, finalizes, and returns the image,
+bootstrap, artifact-version, cleanup, and safe provenance outputs. Set `liskov-url`
+to use the same custom Liskov base for both import and upload.
+
 ## À-la-carte actions
 
 Compose your own job from these (`uses: proof-computer/liskov-github-actions/actions/<name>@v1`):
@@ -82,6 +109,7 @@ Compose your own job from these (`uses: proof-computer/liskov-github-actions/act
 | `artifact-pin-attest` | JS | OIDC → `POST /api/applications/<id>/artifact-pins/github` |
 | `marketplace-ingest` | JS | OIDC → `POST /api/marketplace/ingest` |
 | `policy-import` | JS | OIDC → `POST /api/applications/<id>/policy-imports/github` (import the repo's authored manifest as a draft) |
+| `runtime-image-upload` | JS | Hash → manifest-bound scoped Tigris upload → fresh-OIDC finalize |
 
 ## Versioning
 
@@ -94,9 +122,12 @@ Compose your own job from these (`uses: proof-computer/liskov-github-actions/act
 
 ## Security posture
 
-Only **no-spend** (IPFS pin) and **OIDC attest/ingest** operations are exposed; the
-spend-capable `ACURAST_MNEMONIC` CLI-upload path is intentionally **not** ported. The
-attest/ingest endpoints are gated server-side on a repo allowlist + `workflowRef`.
+Only **no-spend** (IPFS pin), **OIDC attest/ingest**, and scoped runtime-image upload
+operations are exposed; the spend-capable `ACURAST_MNEMONIC` CLI-upload path is
+intentionally **not** ported. Runtime-image sessions require the exact imported
+manifest digest pair, and upload credentials are masked, retained only in memory,
+scoped to one object, and never emitted as outputs. The attest/ingest/upload endpoints
+are gated server-side on repository, ref, workflow, and manifest authority.
 
 ## Development
 

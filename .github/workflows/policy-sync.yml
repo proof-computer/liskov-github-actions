@@ -30,6 +30,11 @@ on:
         required: false
         type: string
         default: ""
+      liskov-url:
+        description: "Liskov service base URL used when import-url is not supplied."
+        required: false
+        type: string
+        default: ""
 
 jobs:
   import:
@@ -45,3 +50,4 @@ jobs:
           application-id: ${{ inputs.application-id }}
           manifest-path: ${{ inputs.manifest-path }}
           import-url: ${{ inputs.import-url }}
+          liskov-url: ${{ inputs.liskov-url }}

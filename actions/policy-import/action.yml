@@ -11,6 +11,10 @@ inputs:
     description: "Policy-import URL template ({applicationId} substituted). Defaults to the prod liskov-rs endpoint (or LISKOV_POLICY_IMPORT_URL env)."
     required: false
     default: ""
+  liskov-url:
+    description: "Liskov service base URL. Used when import-url is not supplied."
+    required: false
+    default: ""
   audience:
     description: "OIDC token audience."
     required: false

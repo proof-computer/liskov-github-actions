@@ -19664,10 +19664,10 @@ var require_core = __commonJS({
       (0, command_1.issueCommand)("set-env", { name }, convertedVal);
     }
     exports2.exportVariable = exportVariable;
-    function setSecret(secret) {
+    function setSecret2(secret) {
       (0, command_1.issueCommand)("add-mask", {}, secret);
     }
-    exports2.setSecret = setSecret;
+    exports2.setSecret = setSecret2;
     function addPath(inputPath) {
       const filePath = process.env["GITHUB_PATH"] || "";
       if (filePath) {
@@ -19815,12 +19815,43 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
 // actions/policy-import/src/index.ts
 var import_promises = require("node:fs/promises");
 var core = __toESM(require_core(), 1);
-var DEFAULT_URL = "https://liskov.proof.computer/api/applications/{applicationId}/policy-imports/github";
+
+// actions/policy-import/src/url.ts
+var DEFAULT_LISKOV_URL = "https://liskov.proof.computer";
+function resolvePolicyImportUrl(input) {
+  const applicationId = encodeURIComponent(input.applicationId);
+  const explicitImportUrl = input.importUrl?.trim();
+  if (explicitImportUrl) {
+    return explicitImportUrl.replaceAll("{applicationId}", applicationId);
+  }
+  const baseUrl = input.liskovUrl?.trim();
+  if (baseUrl) {
+    return runtimeImportUrl(baseUrl, applicationId);
+  }
+  const environmentUrl = input.environmentUrl?.trim();
+  if (environmentUrl) {
+    return environmentUrl.replaceAll("{applicationId}", applicationId);
+  }
+  return runtimeImportUrl(DEFAULT_LISKOV_URL, applicationId);
+}
+function runtimeImportUrl(baseUrl, encodedApplicationId) {
+  const url = new URL(baseUrl);
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    throw new Error("liskov-url must use http or https");
+  }
+  url.pathname = `${url.pathname.replace(/\/+$/u, "")}/api/applications/${encodedApplicationId}/policy-imports/github`;
+  url.search = "";
+  url.hash = "";
+  return url.toString();
+}
+
+// actions/policy-import/src/index.ts
 async function run() {
   const applicationId = core.getInput("application-id", { required: true }).trim();
   const manifestPath = core.getInput("manifest-path", { required: true }).trim();
   const audience = core.getInput("audience") || "slipway-artifact-pin";
-  const urlTemplate = core.getInput("import-url") || process.env.LISKOV_POLICY_IMPORT_URL || DEFAULT_URL;
+  const importUrl = core.getInput("import-url");
+  const liskovUrl = core.getInput("liskov-url");
   let document;
   try {
     document = JSON.parse(await (0, import_promises.readFile)(manifestPath, "utf8"));
@@ -19835,7 +19866,13 @@ async function run() {
     throw new Error(`${manifestPath} declares applicationId ${documentId}, expected ${applicationId}`);
   }
   const token = await core.getIDToken(audience);
-  const url = urlTemplate.replaceAll("{applicationId}", encodeURIComponent(applicationId));
+  core.setSecret(token);
+  const url = resolvePolicyImportUrl({
+    applicationId,
+    importUrl,
+    liskovUrl,
+    environmentUrl: process.env.LISKOV_POLICY_IMPORT_URL
+  });
   const response = await fetch(url, {
     method: "POST",
     headers: { authorization: `Bearer ${token}`, accept: "application/json", "content-type": "application/json" },

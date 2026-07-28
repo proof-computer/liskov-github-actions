@@ -1,0 +1,126 @@
+name: Liskov runtime-image upload
+
+on:
+  workflow_call:
+    inputs:
+      application-id:
+        description: "Liskov Application id."
+        required: true
+        type: string
+      manifest-path:
+        description: "Repo-relative path to the authored V4 runtime-image build manifest."
+        required: true
+        type: string
+      image-url:
+        description: "Pinned upstream PRoot image URL to upload unchanged."
+        required: true
+        type: string
+      expected-sha256:
+        description: "Optional expected image SHA-256, with or without a sha256: prefix."
+        required: false
+        type: string
+        default: ""
+      liskov-url:
+        description: "Liskov service base URL used for import and upload."
+        required: false
+        type: string
+        default: "https://liskov.proof.computer"
+      audience:
+        description: "GitHub OIDC audience for runtime-image upload authorization."
+        required: false
+        type: string
+        default: "liskov-runtime-image-upload"
+    outputs:
+      image-digest:
+        description: "Uploaded image digest."
+        value: ${{ jobs.upload.outputs.image-digest }}
+      image-byte-size:
+        description: "Uploaded image size."
+        value: ${{ jobs.upload.outputs.image-byte-size }}
+      upload-session-id:
+        description: "Liskov upload-session id."
+        value: ${{ jobs.upload.outputs.upload-session-id }}
+      image-url:
+        description: "Final image URL."
+        value: ${{ jobs.upload.outputs.image-url }}
+      bootstrap-cid:
+        description: "Launchable bootstrap CID."
+        value: ${{ jobs.upload.outputs.bootstrap-cid }}
+      bootstrap-digest:
+        description: "Bootstrap bundle digest."
+        value: ${{ jobs.upload.outputs.bootstrap-digest }}
+      bootstrap-manifest-digest:
+        description: "Bootstrap manifest digest."
+        value: ${{ jobs.upload.outputs.bootstrap-manifest-digest }}
+      artifact-version-id:
+        description: "Manifest-bound artifact version id."
+        value: ${{ jobs.upload.outputs.artifact-version-id }}
+      artifact-mode:
+        description: "Final artifact mode."
+        value: ${{ jobs.upload.outputs.artifact-mode }}
+      auto-published:
+        description: "Whether finalization auto-published."
+        value: ${{ jobs.upload.outputs.auto-published }}
+      cleanup-status:
+        description: "Scoped Tigris credential cleanup status."
+        value: ${{ jobs.upload.outputs.cleanup-status }}
+      provenance-json:
+        description: "Safe GitHub provenance JSON."
+        value: ${{ jobs.upload.outputs.provenance-json }}
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      image-digest: ${{ steps.upload.outputs.image-digest }}
+      image-byte-size: ${{ steps.upload.outputs.image-byte-size }}
+      upload-session-id: ${{ steps.upload.outputs.upload-session-id }}
+      image-url: ${{ steps.upload.outputs.image-url }}
+      bootstrap-cid: ${{ steps.upload.outputs.bootstrap-cid }}
+      bootstrap-digest: ${{ steps.upload.outputs.bootstrap-digest }}
+      bootstrap-manifest-digest: ${{ steps.upload.outputs.bootstrap-manifest-digest }}
+      artifact-version-id: ${{ steps.upload.outputs.artifact-version-id }}
+      artifact-mode: ${{ steps.upload.outputs.artifact-mode }}
+      auto-published: ${{ steps.upload.outputs.auto-published }}
+      cleanup-status: ${{ steps.upload.outputs.cleanup-status }}
+      provenance-json: ${{ steps.upload.outputs.provenance-json }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Import exact authored manifest
+        id: manifest
+        uses: proof-computer/liskov-github-actions/actions/policy-import@main
+        with:
+          application-id: ${{ inputs.application-id }}
+          manifest-path: ${{ inputs.manifest-path }}
+          liskov-url: ${{ inputs.liskov-url }}
+
+      - name: Download runtime image
+        shell: bash
+        env:
+          LISKOV_RUNTIME_IMAGE_SOURCE_URL: ${{ inputs.image-url }}
+        run: |
+          set -euo pipefail
+          curl --fail --location --show-error --silent \
+            --output "${RUNNER_TEMP}/liskov-runtime-image.tar.zst" \
+            "${LISKOV_RUNTIME_IMAGE_SOURCE_URL}"
+
+      - name: Upload and finalize manifest-bound runtime image
+        id: upload
+        uses: proof-computer/liskov-github-actions/actions/runtime-image-upload@main
+        with:
+          application-id: ${{ inputs.application-id }}
+          image-path: ${{ runner.temp }}/liskov-runtime-image.tar.zst
+          authored-digest: ${{ steps.manifest.outputs.authored-digest }}
+          release-intent-digest: ${{ steps.manifest.outputs.release-intent-digest }}
+          expected-sha256: ${{ inputs.expected-sha256 }}
+          source-image-url: ${{ inputs.image-url }}
+          liskov-url: ${{ inputs.liskov-url }}
+          audience: ${{ inputs.audience }}

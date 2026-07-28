@@ -9,13 +9,14 @@
 import { readFile } from "node:fs/promises";
 import * as core from "@actions/core";
 
-const DEFAULT_URL = "https://liskov.proof.computer/api/applications/{applicationId}/policy-imports/github";
+import { resolvePolicyImportUrl } from "./url.js";
 
 async function run(): Promise<void> {
   const applicationId = core.getInput("application-id", { required: true }).trim();
   const manifestPath = core.getInput("manifest-path", { required: true }).trim();
   const audience = core.getInput("audience") || "slipway-artifact-pin";
-  const urlTemplate = core.getInput("import-url") || process.env.LISKOV_POLICY_IMPORT_URL || DEFAULT_URL;
+  const importUrl = core.getInput("import-url");
+  const liskovUrl = core.getInput("liskov-url");
 
   let document: unknown;
   try {
@@ -32,7 +33,13 @@ async function run(): Promise<void> {
   }
 
   const token = await core.getIDToken(audience);
-  const url = urlTemplate.replaceAll("{applicationId}", encodeURIComponent(applicationId));
+  core.setSecret(token);
+  const url = resolvePolicyImportUrl({
+    applicationId,
+    importUrl,
+    liskovUrl,
+    environmentUrl: process.env.LISKOV_POLICY_IMPORT_URL
+  });
   const response = await fetch(url, {
     method: "POST",
     headers: { authorization: `Bearer ${token}`, accept: "application/json", "content-type": "application/json" },
