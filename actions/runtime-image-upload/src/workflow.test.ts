@@ -36,7 +36,7 @@ describe("runtime-image reusable workflow", () => {
 
     assert.equal(
       manifest?.uses,
-      "proof-computer/liskov-github-actions/actions/policy-import@main"
+      "proof-computer/liskov-github-actions/actions/policy-import@v1"
     );
     assert.equal(
       object(manifest?.with, "manifest.with")["liskov-url"],
@@ -44,7 +44,7 @@ describe("runtime-image reusable workflow", () => {
     );
     assert.equal(
       upload?.uses,
-      "proof-computer/liskov-github-actions/actions/runtime-image-upload@main"
+      "proof-computer/liskov-github-actions/actions/runtime-image-upload@v1"
     );
     const uploadWith = object(upload?.with, "upload.with");
     assert.equal(

@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Notify catalog ingest
-        uses: proof-computer/liskov-github-actions/actions/marketplace-ingest@main
+        uses: proof-computer/liskov-github-actions/actions/marketplace-ingest@v1
         with:
           ingest-url: ${{ inputs.ingest-url }}
           audience: ${{ inputs.audience }}

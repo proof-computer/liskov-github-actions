@@ -58,7 +58,7 @@ on:
 permissions: { id-token: write, contents: read }
 jobs:
   manifest:
-    uses: proof-computer/liskov-github-actions/.github/workflows/policy-sync.yml@main
+    uses: proof-computer/liskov-github-actions/.github/workflows/policy-sync.yml@v1
     with:
       application-id: slipway-diagnostic
       manifest-path: .liskov/slipway-diagnostic.policy.json
@@ -115,10 +115,8 @@ Compose your own job from these (`uses: proof-computer/liskov-github-actions/act
 
 - Tag releases `vX.Y.Z`; `release.yml` moves the **`vX`** major tag so consumers pin
   `@v1` and get the latest `v1.x`. Security-sensitive callers can pin a commit SHA.
-- **Caveat:** the reusable workflows reference their own JS actions by a **literal**
-  ref (`@main` today — GitHub doesn't allow an expression in `uses:`). On each release,
-  bump those internal `@main` refs to the release tag so a pinned `@v1` workflow runs
-  `@v1` actions. (Tracked in BKLG-20260624-jn9l.)
+- Reusable workflows reference their own JS actions by the literal `@v1` major tag,
+  so a caller pinned to `@v1` executes the matching released action surface.
 
 ## Security posture
 

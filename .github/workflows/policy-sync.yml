@@ -9,7 +9,7 @@ name: Liskov manifest import
 #   permissions: { id-token: write, contents: read }
 #   jobs:
 #     manifest:
-#       uses: proof-computer/liskov-github-actions/.github/workflows/policy-sync.yml@main
+#       uses: proof-computer/liskov-github-actions/.github/workflows/policy-sync.yml@v1
 #       with:
 #         application-id: slipway-diagnostic
 #         manifest-path: .liskov/slipway-diagnostic.policy.json
@@ -45,7 +45,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Import manifest into Liskov
-        uses: proof-computer/liskov-github-actions/actions/policy-import@main
+        uses: proof-computer/liskov-github-actions/actions/policy-import@v1
         with:
           application-id: ${{ inputs.application-id }}
           manifest-path: ${{ inputs.manifest-path }}

@@ -96,7 +96,7 @@ jobs:
 
       - name: Import exact authored manifest
         id: manifest
-        uses: proof-computer/liskov-github-actions/actions/policy-import@main
+        uses: proof-computer/liskov-github-actions/actions/policy-import@v1
         with:
           application-id: ${{ inputs.application-id }}
           manifest-path: ${{ inputs.manifest-path }}
@@ -114,7 +114,7 @@ jobs:
 
       - name: Upload and finalize manifest-bound runtime image
         id: upload
-        uses: proof-computer/liskov-github-actions/actions/runtime-image-upload@main
+        uses: proof-computer/liskov-github-actions/actions/runtime-image-upload@v1
         with:
           application-id: ${{ inputs.application-id }}
           image-path: ${{ runner.temp }}/liskov-runtime-image.tar.zst

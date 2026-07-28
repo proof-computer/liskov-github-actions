@@ -103,7 +103,7 @@ jobs:
 
       - name: IPFS pin (no-spend)
         id: pin
-        uses: proof-computer/liskov-github-actions/actions/ipfs-pin@main
+        uses: proof-computer/liskov-github-actions/actions/ipfs-pin@v1
         with:
           app-name: ${{ inputs.app-id }}
           working-directory: ${{ inputs.working-directory }}
@@ -115,7 +115,7 @@ jobs:
 
       - name: Attest artifact pin
         if: ${{ inputs.attest }}
-        uses: proof-computer/liskov-github-actions/actions/artifact-pin-attest@main
+        uses: proof-computer/liskov-github-actions/actions/artifact-pin-attest@v1
         with:
           application-id: ${{ inputs.app-id }}
           build-manifest-path: ${{ steps.pin.outputs.manifest-path }}
