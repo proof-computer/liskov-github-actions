@@ -87,10 +87,20 @@ jobs:
       manifest-path: .liskov/my-app.json
       image-url: ${{ inputs.image_url }}
       expected-sha256: ${{ inputs.expected_sha256 }}
+      attestation-repository: proof-computer/liskov-runtime-images
+      attestation-source-digest: ${{ inputs.image_source_commit }}
+      attestation-signer-workflow: proof-computer/liskov-runtime-images/.github/workflows/ci.yml
 ```
 
-Imports the exact V4 runtime-image build manifest, downloads the supplied image,
-locally verifies its SHA-256 when provided, and passes the server-authoritative
+Downloads the supplied image and locally verifies its SHA-256 before any import
+or upload. When `attestation-repository`, `attestation-source-digest`, and
+`attestation-signer-workflow` are supplied, the workflow requires
+`expected-sha256` and verifies the downloaded file's GitHub artifact attestation
+against that exact source commit and signer workflow before any state-changing
+step. The three attestation inputs are all-or-none. Omitting all three preserves
+the existing unattested direct-URL migration/debug path.
+
+The workflow then imports the exact V4 runtime-image build manifest and passes the server-authoritative
 `authoredDigest` and `releaseIntentDigest` to a scoped upload action. Liskov verifies
 that exact binding before creating one-object Tigris credentials; the action uploads
 without exposing the credentials, remints OIDC, finalizes, and returns the image,
@@ -115,6 +125,8 @@ Compose your own job from these (`uses: proof-computer/liskov-github-actions/act
 
 - Tag releases `vX.Y.Z`; `release.yml` moves the **`vX`** major tag so consumers pin
   `@v1` and get the latest `v1.x`. Security-sensitive callers can pin a commit SHA.
+- `v1.0.1` adds optional source-commit and signer-workflow verification for
+  runtime images without changing existing direct-URL callers.
 - Reusable workflows reference their own JS actions by the literal `@v1` major tag,
   so a caller pinned to `@v1` executes the matching released action surface.
 

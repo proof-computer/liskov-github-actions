@@ -20,6 +20,21 @@ on:
         required: false
         type: string
         default: ""
+      attestation-repository:
+        description: "Artifact attestation repository (owner/repo). Supply with attestation-source-digest and attestation-signer-workflow."
+        required: false
+        type: string
+        default: ""
+      attestation-source-digest:
+        description: "Exact source commit recorded by the artifact attestation. Supply with the other attestation inputs."
+        required: false
+        type: string
+        default: ""
+      attestation-signer-workflow:
+        description: "Exact signer workflow identity (owner/repo/.github/workflows/file.yml). Supply with the other attestation inputs."
+        required: false
+        type: string
+        default: ""
       liskov-url:
         description: "Liskov service base URL used for import and upload."
         required: false
@@ -71,6 +86,7 @@ on:
 permissions:
   contents: read
   id-token: write
+  attestations: read
 
 jobs:
   upload:
@@ -78,6 +94,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      attestations: read
     outputs:
       image-digest: ${{ steps.upload.outputs.image-digest }}
       image-byte-size: ${{ steps.upload.outputs.image-byte-size }}
@@ -94,15 +111,52 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Import exact authored manifest
-        id: manifest
-        uses: proof-computer/liskov-github-actions/actions/policy-import@v1
-        with:
-          application-id: ${{ inputs.application-id }}
-          manifest-path: ${{ inputs.manifest-path }}
-          liskov-url: ${{ inputs.liskov-url }}
+      - name: Validate image provenance inputs
+        shell: bash
+        env:
+          EXPECTED_SHA256: ${{ inputs.expected-sha256 }}
+          ATTESTATION_REPOSITORY: ${{ inputs.attestation-repository }}
+          ATTESTATION_SOURCE_DIGEST: ${{ inputs.attestation-source-digest }}
+          ATTESTATION_SIGNER_WORKFLOW: ${{ inputs.attestation-signer-workflow }}
+        run: |
+          set -euo pipefail
+          supplied=0
+          for value in \
+            "${ATTESTATION_REPOSITORY}" \
+            "${ATTESTATION_SOURCE_DIGEST}" \
+            "${ATTESTATION_SIGNER_WORKFLOW}"
+          do
+            if [[ -n "${value}" ]]; then
+              supplied=$((supplied + 1))
+            fi
+          done
+          if [[ "${supplied}" -ne 0 && "${supplied}" -ne 3 ]]; then
+            echo "attestation-repository, attestation-source-digest, and attestation-signer-workflow must be supplied together" >&2
+            exit 1
+          fi
+          if [[ "${supplied}" -eq 3 && -z "${EXPECTED_SHA256}" ]]; then
+            echo "expected-sha256 is required when attestation verification is enabled" >&2
+            exit 1
+          fi
+          if [[ "${supplied}" -eq 3 ]]; then
+            [[ "${ATTESTATION_REPOSITORY}" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || {
+              echo "attestation-repository must be owner/repo" >&2
+              exit 1
+            }
+            [[ "${ATTESTATION_SOURCE_DIGEST}" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]] || {
+              echo "attestation-source-digest must be an exact lowercase Git commit digest" >&2
+              exit 1
+            }
+            expected_workflow_prefix="${ATTESTATION_REPOSITORY}/.github/workflows/"
+            [[ "${ATTESTATION_SIGNER_WORKFLOW}" == "${expected_workflow_prefix}"*.yml || \
+               "${ATTESTATION_SIGNER_WORKFLOW}" == "${expected_workflow_prefix}"*.yaml ]] || {
+              echo "attestation-signer-workflow must identify a workflow in attestation-repository" >&2
+              exit 1
+            }
+          fi
 
       - name: Download runtime image
+        id: download
         shell: bash
         env:
           LISKOV_RUNTIME_IMAGE_SOURCE_URL: ${{ inputs.image-url }}
@@ -111,6 +165,49 @@ jobs:
           curl --fail --location --show-error --silent \
             --output "${RUNNER_TEMP}/liskov-runtime-image.tar.zst" \
             "${LISKOV_RUNTIME_IMAGE_SOURCE_URL}"
+
+      - name: Verify expected image digest
+        if: ${{ inputs.expected-sha256 != '' }}
+        shell: bash
+        env:
+          EXPECTED_SHA256: ${{ inputs.expected-sha256 }}
+        run: |
+          set -euo pipefail
+          expected="${EXPECTED_SHA256,,}"
+          expected="${expected#sha256:}"
+          [[ "${expected}" =~ ^[0-9a-f]{64}$ ]] || {
+            echo "expected-sha256 must be 64 hexadecimal characters with an optional sha256: prefix" >&2
+            exit 1
+          }
+          actual="$(sha256sum "${RUNNER_TEMP}/liskov-runtime-image.tar.zst" | cut -d ' ' -f 1)"
+          [[ "${actual}" == "${expected}" ]] || {
+            echo "runtime image SHA-256 mismatch: expected sha256:${expected}, got sha256:${actual}" >&2
+            exit 1
+          }
+
+      - name: Verify source-bound artifact attestation
+        if: ${{ inputs.attestation-repository != '' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ATTESTATION_REPOSITORY: ${{ inputs.attestation-repository }}
+          ATTESTATION_SOURCE_DIGEST: ${{ inputs.attestation-source-digest }}
+          ATTESTATION_SIGNER_WORKFLOW: ${{ inputs.attestation-signer-workflow }}
+        run: |
+          set -euo pipefail
+          gh attestation verify \
+            "${RUNNER_TEMP}/liskov-runtime-image.tar.zst" \
+            --repo "${ATTESTATION_REPOSITORY}" \
+            --source-digest "${ATTESTATION_SOURCE_DIGEST}" \
+            --signer-workflow "${ATTESTATION_SIGNER_WORKFLOW}"
+
+      - name: Import exact authored manifest
+        id: manifest
+        uses: proof-computer/liskov-github-actions/actions/policy-import@v1
+        with:
+          application-id: ${{ inputs.application-id }}
+          manifest-path: ${{ inputs.manifest-path }}
+          liskov-url: ${{ inputs.liskov-url }}
 
       - name: Upload and finalize manifest-bound runtime image
         id: upload
