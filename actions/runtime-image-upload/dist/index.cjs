@@ -54966,6 +54966,21 @@ var import_node_fs4 = require("node:fs");
 var core = __toESM(require_core(), 1);
 var import_client_s3 = __toESM(require_dist_cjs16(), 1);
 
+// actions/runtime-image-upload/src/http-error.ts
+function safeLiskovErrorDetail(parsed) {
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return "";
+  const response = parsed;
+  const code = safeField(response.error, 80);
+  const reason = safeField(response.reason, 160);
+  if (code && reason) return ` (${code}: ${reason})`;
+  if (code) return ` (${code})`;
+  return "";
+}
+function safeField(value, maxLength) {
+  if (typeof value !== "string" || value.length === 0 || value.length > maxLength) return "";
+  return /^[A-Za-z0-9_./: -]+$/u.test(value) ? value : "";
+}
+
 // actions/runtime-image-upload/src/runtime.ts
 var import_node_crypto7 = require("node:crypto");
 var import_node_fs3 = require("node:fs");
@@ -55254,9 +55269,9 @@ async function postJson(url, token, body) {
     throw new Error(`Liskov request failed with HTTP ${response.status} and a non-JSON response`);
   }
   if (!response.ok) {
-    const responseRecord = parsed !== null && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-    const code = typeof responseRecord.error === "string" && /^[A-Za-z0-9_.-]+$/u.test(responseRecord.error) ? ` (${responseRecord.error})` : "";
-    throw new Error(`Liskov request failed with HTTP ${response.status}${code}`);
+    throw new Error(
+      `Liskov request failed with HTTP ${response.status}${safeLiskovErrorDetail(parsed)}`
+    );
   }
   return parsed;
 }

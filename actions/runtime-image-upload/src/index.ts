@@ -3,6 +3,7 @@ import { createReadStream } from "node:fs";
 import * as core from "@actions/core";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
+import { safeLiskovErrorDetail } from "./http-error.js";
 import {
   inspectRuntimeImage,
   uploadRuntimeImage,
@@ -56,15 +57,9 @@ async function postJson(url: string, token: string, body: unknown): Promise<unkn
     throw new Error(`Liskov request failed with HTTP ${response.status} and a non-JSON response`);
   }
   if (!response.ok) {
-    const responseRecord =
-      parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
-        ? parsed as Record<string, unknown>
-        : {};
-    const code =
-      typeof responseRecord.error === "string" && /^[A-Za-z0-9_.-]+$/u.test(responseRecord.error)
-        ? ` (${responseRecord.error})`
-        : "";
-    throw new Error(`Liskov request failed with HTTP ${response.status}${code}`);
+    throw new Error(
+      `Liskov request failed with HTTP ${response.status}${safeLiskovErrorDetail(parsed)}`
+    );
   }
   return parsed;
 }
