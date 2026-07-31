@@ -1,0 +1,256 @@
+name: Cargo app — deterministic runtime image
+
+on:
+  workflow_call:
+    inputs:
+      application-id:
+        description: "Liskov Application id."
+        required: true
+        type: string
+      manifest-path:
+        description: "Repo-relative authored V4 runtime-image manifest."
+        required: true
+        type: string
+      working-directory:
+        description: "Directory containing Cargo.toml, Cargo.lock, and the pinned toolchain file."
+        required: false
+        type: string
+        default: "."
+      binary-name:
+        description: "Cargo binary target to build and install."
+        required: true
+        type: string
+      install-path:
+        description: "Absolute binary path inside the runtime image."
+        required: false
+        type: string
+        default: "/usr/local/bin/liskov-app"
+      rust-toolchain-path:
+        description: "Pinned rust-toolchain.toml path relative to working-directory."
+        required: false
+        type: string
+        default: "rust-toolchain.toml"
+      base-image-url:
+        description: "Immutable helperless Liskov rootfs release URL."
+        required: true
+        type: string
+      base-image-sha256:
+        description: "Raw lowercase SHA-256 of the base rootfs."
+        required: true
+        type: string
+      base-attestation-repository:
+        description: "Repository that attested the base rootfs (owner/repo)."
+        required: true
+        type: string
+      base-attestation-source-digest:
+        description: "Exact source commit bound to the base-rootfs attestation."
+        required: true
+        type: string
+      base-attestation-signer-workflow:
+        description: "Exact workflow identity that attested the base rootfs."
+        required: true
+        type: string
+      bootstrap-mode:
+        required: false
+        type: string
+        default: "standard"
+      liskov-url:
+        required: false
+        type: string
+        default: "https://liskov.proof.computer"
+      audience:
+        required: false
+        type: string
+        default: "liskov-runtime-image-upload"
+    outputs:
+      image-digest:
+        value: ${{ jobs.build-upload.outputs.image-digest }}
+      image-byte-size:
+        value: ${{ jobs.build-upload.outputs.image-byte-size }}
+      upload-session-id:
+        value: ${{ jobs.build-upload.outputs.upload-session-id }}
+      image-url:
+        value: ${{ jobs.build-upload.outputs.image-url }}
+      bootstrap-cid:
+        value: ${{ jobs.build-upload.outputs.bootstrap-cid }}
+      bootstrap-digest:
+        value: ${{ jobs.build-upload.outputs.bootstrap-digest }}
+      bootstrap-manifest-digest:
+        value: ${{ jobs.build-upload.outputs.bootstrap-manifest-digest }}
+      artifact-version-id:
+        value: ${{ jobs.build-upload.outputs.artifact-version-id }}
+      artifact-mode:
+        value: ${{ jobs.build-upload.outputs.artifact-mode }}
+      auto-published:
+        value: ${{ jobs.build-upload.outputs.auto-published }}
+      cleanup-status:
+        value: ${{ jobs.build-upload.outputs.cleanup-status }}
+      provenance-json:
+        value: ${{ jobs.build-upload.outputs.provenance-json }}
+
+permissions:
+  attestations: write
+  contents: read
+  id-token: write
+
+jobs:
+  build-upload:
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      image-digest: ${{ steps.upload.outputs.image-digest }}
+      image-byte-size: ${{ steps.upload.outputs.image-byte-size }}
+      upload-session-id: ${{ steps.upload.outputs.upload-session-id }}
+      image-url: ${{ steps.upload.outputs.image-url }}
+      bootstrap-cid: ${{ steps.upload.outputs.bootstrap-cid }}
+      bootstrap-digest: ${{ steps.upload.outputs.bootstrap-digest }}
+      bootstrap-manifest-digest: ${{ steps.upload.outputs.bootstrap-manifest-digest }}
+      artifact-version-id: ${{ steps.upload.outputs.artifact-version-id }}
+      artifact-mode: ${{ steps.upload.outputs.artifact-mode }}
+      auto-published: ${{ steps.upload.outputs.auto-published }}
+      cleanup-status: ${{ steps.upload.outputs.cleanup-status }}
+      provenance-json: ${{ steps.upload.outputs.provenance-json }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Validate locked Cargo inputs and pinned toolchain
+        id: toolchain
+        shell: bash
+        env:
+          WORKING_DIRECTORY: ${{ inputs.working-directory }}
+          TOOLCHAIN_PATH: ${{ inputs.rust-toolchain-path }}
+        run: |
+          set -euo pipefail
+          test -s "${WORKING_DIRECTORY}/Cargo.lock"
+          test -s "${WORKING_DIRECTORY}/${TOOLCHAIN_PATH}"
+          channel=$(python3 - "${WORKING_DIRECTORY}/${TOOLCHAIN_PATH}" <<'PY'
+          import re
+          import sys
+          import tomllib
+          with open(sys.argv[1], "rb") as handle:
+              channel = tomllib.load(handle).get("toolchain", {}).get("channel")
+          if not isinstance(channel, str) or not (
+              re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?", channel)
+              or re.fullmatch(r"(?:nightly|beta)-[0-9]{4}-[0-9]{2}-[0-9]{2}", channel)
+          ):
+              raise SystemExit("rust-toolchain.toml must pin an exact version or dated channel")
+          print(channel)
+          PY
+          )
+          echo "channel=${channel}" >> "${GITHUB_OUTPUT}"
+
+      - name: Install native MUSL build and archive tools
+        shell: bash
+        env:
+          RUST_TOOLCHAIN: ${{ steps.toolchain.outputs.channel }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends --yes binutils file musl-tools xz-utils
+          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
+          rustup target add --toolchain "${RUST_TOOLCHAIN}" aarch64-unknown-linux-musl
+
+      - name: Download and verify helperless base rootfs
+        shell: bash
+        env:
+          BASE_IMAGE_URL: ${{ inputs.base-image-url }}
+          BASE_IMAGE_SHA256: ${{ inputs.base-image-sha256 }}
+          GH_TOKEN: ${{ github.token }}
+          ATTESTATION_REPOSITORY: ${{ inputs.base-attestation-repository }}
+          ATTESTATION_SOURCE_DIGEST: ${{ inputs.base-attestation-source-digest }}
+          ATTESTATION_SIGNER_WORKFLOW: ${{ inputs.base-attestation-signer-workflow }}
+        run: |
+          set -euo pipefail
+          [[ "${BASE_IMAGE_SHA256}" =~ ^[0-9a-f]{64}$ ]]
+          curl --fail --location --show-error --silent \
+            --output "${RUNNER_TEMP}/base-rootfs.tar.xz" \
+            "${BASE_IMAGE_URL}"
+          actual=$(sha256sum "${RUNNER_TEMP}/base-rootfs.tar.xz" | cut -d ' ' -f 1)
+          [[ "${actual}" == "${BASE_IMAGE_SHA256}" ]]
+          gh attestation verify "${RUNNER_TEMP}/base-rootfs.tar.xz" \
+            --repo "${ATTESTATION_REPOSITORY}" \
+            --source-digest "${ATTESTATION_SOURCE_DIGEST}" \
+            --signer-workflow "${ATTESTATION_SIGNER_WORKFLOW}"
+
+      - name: Build the static AArch64 MUSL binary twice
+        shell: bash
+        working-directory: ${{ inputs.working-directory }}
+        env:
+          BINARY_NAME: ${{ inputs.binary-name }}
+          RUST_TOOLCHAIN: ${{ steps.toolchain.outputs.channel }}
+          CARGO_INCREMENTAL: "0"
+          SOURCE_DATE_EPOCH: "0"
+        run: |
+          set -euo pipefail
+          export RUSTFLAGS="-C strip=symbols -C link-arg=-Wl,--build-id=none --remap-path-prefix=${GITHUB_WORKSPACE}=."
+          for build in one two; do
+            export CARGO_TARGET_DIR="${RUNNER_TEMP}/cargo-${build}"
+            cargo "+${RUST_TOOLCHAIN}" build \
+              --release --locked --target aarch64-unknown-linux-musl \
+              --bin "${BINARY_NAME}"
+            binary="${CARGO_TARGET_DIR}/aarch64-unknown-linux-musl/release/${BINARY_NAME}"
+            file "${binary}"
+            readelf -h "${binary}" | grep -q 'Machine:.*AArch64'
+            if readelf -l "${binary}" | grep -q 'Requesting program interpreter'; then
+              echo "Cargo binary unexpectedly contains a dynamic interpreter" >&2
+              exit 1
+            fi
+          done
+          cmp \
+            "${RUNNER_TEMP}/cargo-one/aarch64-unknown-linux-musl/release/${BINARY_NAME}" \
+            "${RUNNER_TEMP}/cargo-two/aarch64-unknown-linux-musl/release/${BINARY_NAME}"
+
+      - name: Compose first deterministic image
+        id: image-one
+        uses: proof-computer/liskov-github-actions/actions/cargo-runtime-image-build@v1
+        with:
+          rootfs-path: ${{ runner.temp }}/base-rootfs.tar.xz
+          binary-path: ${{ runner.temp }}/cargo-one/aarch64-unknown-linux-musl/release/${{ inputs.binary-name }}
+          install-path: ${{ inputs.install-path }}
+          output-path: ${{ runner.temp }}/cargo-runtime-image-one.tar.xz
+
+      - name: Compose second deterministic image
+        id: image-two
+        uses: proof-computer/liskov-github-actions/actions/cargo-runtime-image-build@v1
+        with:
+          rootfs-path: ${{ runner.temp }}/base-rootfs.tar.xz
+          binary-path: ${{ runner.temp }}/cargo-two/aarch64-unknown-linux-musl/release/${{ inputs.binary-name }}
+          install-path: ${{ inputs.install-path }}
+          output-path: ${{ runner.temp }}/cargo-runtime-image-two.tar.xz
+
+      - name: Require identical image digests
+        shell: bash
+        env:
+          FIRST_DIGEST: ${{ steps.image-one.outputs.image-sha256 }}
+          SECOND_DIGEST: ${{ steps.image-two.outputs.image-sha256 }}
+        run: |
+          set -euo pipefail
+          [[ "${FIRST_DIGEST}" == "${SECOND_DIGEST}" ]]
+          cmp \
+            "${RUNNER_TEMP}/cargo-runtime-image-one.tar.xz" \
+            "${RUNNER_TEMP}/cargo-runtime-image-two.tar.xz"
+
+      - name: Attest deterministic Cargo runtime image
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a
+        with:
+          subject-path: ${{ runner.temp }}/cargo-runtime-image-one.tar.xz
+
+      - name: Import exact authored manifest
+        id: manifest
+        uses: proof-computer/liskov-github-actions/actions/policy-import@v1
+        with:
+          application-id: ${{ inputs.application-id }}
+          manifest-path: ${{ inputs.manifest-path }}
+          liskov-url: ${{ inputs.liskov-url }}
+
+      - name: Upload and finalize manifest-bound runtime image
+        id: upload
+        uses: proof-computer/liskov-github-actions/actions/runtime-image-upload@v1
+        with:
+          application-id: ${{ inputs.application-id }}
+          image-path: ${{ runner.temp }}/cargo-runtime-image-one.tar.xz
+          authored-digest: ${{ steps.manifest.outputs.authored-digest }}
+          release-intent-digest: ${{ steps.manifest.outputs.release-intent-digest }}
+          bootstrap-mode: ${{ inputs.bootstrap-mode }}
+          expected-sha256: ${{ steps.image-one.outputs.image-sha256 }}
+          liskov-url: ${{ inputs.liskov-url }}
+          audience: ${{ inputs.audience }}

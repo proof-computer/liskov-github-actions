@@ -1,0 +1,45 @@
+name: "Build deterministic Cargo runtime image"
+description: "Overlay one static AArch64 MUSL binary on a verified helperless Liskov rootfs."
+inputs:
+  rootfs-path:
+    description: "Path to the digest-verified helperless rootfs tar archive."
+    required: true
+  binary-path:
+    description: "Path to the statically linked AArch64 MUSL binary."
+    required: true
+  install-path:
+    description: "Absolute path for the binary inside the rootfs."
+    required: false
+    default: "/usr/local/bin/liskov-app"
+  output-path:
+    description: "Destination path for the deterministic tar.xz image."
+    required: true
+outputs:
+  image-sha256:
+    description: "Raw lowercase SHA-256 of the generated image."
+    value: ${{ steps.build.outputs.image-sha256 }}
+  image-byte-size:
+    description: "Generated image size in bytes."
+    value: ${{ steps.build.outputs.image-byte-size }}
+runs:
+  using: composite
+  steps:
+    - id: build
+      name: Validate and build deterministic image
+      shell: bash
+      env:
+        ROOTFS_PATH: ${{ inputs.rootfs-path }}
+        BINARY_PATH: ${{ inputs.binary-path }}
+        INSTALL_PATH: ${{ inputs.install-path }}
+        OUTPUT_PATH: ${{ inputs.output-path }}
+      run: |
+        set -euo pipefail
+        python3 "${{ github.action_path }}/build.py" \
+          --rootfs "${ROOTFS_PATH}" \
+          --binary "${BINARY_PATH}" \
+          --install-path "${INSTALL_PATH}" \
+          --output "${OUTPUT_PATH}"
+        digest="$(sha256sum "${OUTPUT_PATH}" | cut -d ' ' -f 1)"
+        size="$(wc -c < "${OUTPUT_PATH}" | tr -d ' ')"
+        echo "image-sha256=${digest}" >> "${GITHUB_OUTPUT}"
+        echo "image-byte-size=${size}" >> "${GITHUB_OUTPUT}"

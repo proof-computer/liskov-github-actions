@@ -10,7 +10,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test actions/**/*.test.ts",
+    "test": "node --import tsx --test actions/**/*.test.ts && python3 -m unittest discover -s actions/cargo-runtime-image-build/tests -v",
     "build": "tsx scripts/build-actions.ts",
     "check:dist": "tsx scripts/build-actions.ts && git diff --exit-code -- actions"
   },

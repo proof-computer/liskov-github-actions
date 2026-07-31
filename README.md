@@ -107,6 +107,41 @@ without exposing the credentials, remints OIDC, finalizes, and returns the image
 bootstrap, artifact-version, cleanup, and safe provenance outputs. Set `liskov-url`
 to use the same custom Liskov base for both import and upload.
 
+### `cargo-runtime-image.yml` — locked Rust build → deterministic image → upload
+
+This workflow is the reusable supply-chain path for native Cargo applications.
+It requires `Cargo.lock`, an exact `rust-toolchain.toml` channel, and an
+attested, digest-pinned helperless Liskov rootfs. On a native ARM64 runner it
+builds the selected binary twice for `aarch64-unknown-linux-musl`, rejects a
+dynamic interpreter, and requires identical binary bytes. It then overlays
+each build at the declared absolute path, normalizes the rootfs archive, rejects
+any embedded `liskov-runtime-contact`, and requires both complete images to
+have the same digest and bytes.
+
+Only after that proof does the workflow attest the generated image, import the
+exact authored manifest, and invoke the existing scoped upload/finalization
+action. Callers must pin the base image's SHA-256, source commit, repository,
+and signer workflow. Release callers should use the maintained promoted rootfs;
+a release-candidate rootfs remains suitable only for an explicitly controlled
+canary.
+
+```yaml
+jobs:
+  image:
+    uses: proof-computer/liskov-github-actions/.github/workflows/cargo-runtime-image.yml@v1
+    with:
+      application-id: rust-hello-world
+      manifest-path: rust-hello-world/.liskov/application.json
+      working-directory: rust-hello-world
+      binary-name: rust-hello-world
+      install-path: /usr/local/bin/rust-hello-world
+      base-image-url: <immutable release asset URL>
+      base-image-sha256: <64 lowercase hexadecimal characters>
+      base-attestation-repository: proof-computer/liskov-runtime-images
+      base-attestation-source-digest: <exact source commit>
+      base-attestation-signer-workflow: proof-computer/liskov-runtime-images/.github/workflows/ci.yml
+```
+
 ## À-la-carte actions
 
 Compose your own job from these (`uses: proof-computer/liskov-github-actions/actions/<name>@v1`):
@@ -120,6 +155,7 @@ Compose your own job from these (`uses: proof-computer/liskov-github-actions/act
 | `marketplace-ingest` | JS | OIDC → `POST /api/marketplace/ingest` |
 | `policy-import` | JS | OIDC → `POST /api/applications/<id>/policy-imports/github` (import the repo's authored manifest as a draft) |
 | `runtime-image-upload` | JS | Hash → manifest-bound scoped Tigris upload → fresh-OIDC finalize |
+| `cargo-runtime-image-build` | composite + Python | Safely overlay one static AArch64 binary and emit a normalized helperless-rootfs-derived `tar.xz` |
 
 ## Versioning
 

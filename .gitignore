@@ -1,3 +1,5 @@
 node_modules/
 *.log
+__pycache__/
+*.pyc
 # NOTE: actions/*/dist is INTENTIONALLY committed — consumers run the action as-is.
