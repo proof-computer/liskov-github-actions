@@ -82,6 +82,7 @@ describe("runtime-image upload action", () => {
       objectKey: "images/app/session.tar.zst",
       digest: `sha256:${imageHex}`,
       byteSize: image.byteLength,
+      bootstrapMode: "standard",
       provenance: {
         repository: "proof-computer/app",
         ref: "refs/heads/main",
@@ -172,6 +173,65 @@ describe("runtime-image upload action", () => {
       }, dependencies),
       /runtime image SHA-256 mismatch/u
     );
+    assert.equal(oidcCalls, 0);
+    assert.equal(s3Calls, 0);
+  });
+
+  it("sends the exact internal bridge-probe mode only when requested", async () => {
+    const image = Buffer.from("runtime-image");
+    const imagePath = await temporaryImage(image);
+    const imageHex = createHash("sha256").update(image).digest("hex");
+    const requests: Array<{ url: string; token: string; body: unknown }> = [];
+    const dependencies = fakeDependencies({
+      imagePath,
+      requests,
+      postJson: async (url, token, body) => {
+        requests.push({ url, token, body });
+        return requests.length === 1
+          ? sessionResponse()
+          : finalizeResponse(`sha256:${imageHex}`, image.byteLength);
+      }
+    });
+
+    await uploadRuntimeImage({
+      ...inputs(imagePath),
+      bootstrapMode: "bridge-probe"
+    }, dependencies);
+
+    assert.equal(
+      (requests[1]?.body as Record<string, unknown>).bootstrapMode,
+      "bridge-probe"
+    );
+  });
+
+  it("rejects an unknown bootstrap mode before inspection, OIDC, or S3", async () => {
+    const imagePath = await temporaryImage(Buffer.from("runtime-image"));
+    let inspectCalls = 0;
+    let oidcCalls = 0;
+    let s3Calls = 0;
+    const dependencies = fakeDependencies({
+      imagePath,
+      getOidcToken: async () => {
+        oidcCalls += 1;
+        return "unused";
+      },
+      putObject: async () => {
+        s3Calls += 1;
+      }
+    });
+    dependencies.inspectImage = async () => {
+      inspectCalls += 1;
+      return { digest: `sha256:${"a".repeat(64)}`, byteSize: 1 };
+    };
+
+    await assert.rejects(
+      uploadRuntimeImage({
+        ...inputs(imagePath),
+        bootstrapMode: "bridge_probe"
+      }, dependencies),
+      /bootstrap-mode must be exactly standard or bridge-probe/u
+    );
+    assert.equal(inspectCalls, 0);
     assert.equal(oidcCalls, 0);
     assert.equal(s3Calls, 0);
   });

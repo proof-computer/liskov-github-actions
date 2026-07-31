@@ -13,6 +13,10 @@ inputs:
   release-intent-digest:
     description: "Server-authoritative raw lowercase SHA-256 digest of normalized release intent."
     required: true
+  bootstrap-mode:
+    description: "Bootstrap launcher mode. bridge-probe is restricted by Liskov to its exact internal canary workflow."
+    required: false
+    default: "standard"
   expected-sha256:
     description: "Optional expected image SHA-256, with or without a sha256: prefix."
     required: false

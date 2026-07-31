@@ -16,6 +16,7 @@ async function run(): Promise<void> {
     imagePath: core.getInput("image-path", { required: true }),
     authoredDigest: core.getInput("authored-digest", { required: true }),
     releaseIntentDigest: core.getInput("release-intent-digest", { required: true }),
+    bootstrapMode: core.getInput("bootstrap-mode") || "standard",
     expectedSha256: core.getInput("expected-sha256"),
     sourceImageUrl: core.getInput("source-image-url"),
     liskovUrl: core.getInput("liskov-url") || "https://liskov.proof.computer",

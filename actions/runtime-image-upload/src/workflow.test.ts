@@ -38,6 +38,9 @@ describe("runtime-image reusable workflow", () => {
     const uploadIndex = steps.findIndex((step) => step.id === "upload");
 
     const inputs = object(workflowCall.inputs, "on.workflow_call.inputs");
+    const bootstrapMode = object(inputs["bootstrap-mode"], "input bootstrap-mode");
+    assert.equal(bootstrapMode.required, false);
+    assert.equal(bootstrapMode.default, "standard");
     for (const input of [
       "attestation-repository",
       "attestation-source-digest",
@@ -95,6 +98,7 @@ describe("runtime-image reusable workflow", () => {
     );
     assert.equal(uploadWith["liskov-url"], "${{ inputs.liskov-url }}");
     assert.equal(uploadWith.audience, "${{ inputs.audience }}");
+    assert.equal(uploadWith["bootstrap-mode"], "${{ inputs.bootstrap-mode }}");
 
     const jobOutputs = object(uploadJob.outputs, "jobs.upload.outputs");
     const workflowOutputs = object(workflowCall.outputs, "on.workflow_call.outputs");
@@ -115,6 +119,7 @@ describe("runtime-image reusable workflow", () => {
 
     assert.equal(object(inputs["expected-sha256"], "expected-sha256").required, false);
     assert.equal(object(inputs["expected-sha256"], "expected-sha256").default, "");
+    assert.equal(object(inputs["bootstrap-mode"], "bootstrap-mode").default, "standard");
     for (const input of [
       "attestation-repository",
       "attestation-source-digest",

@@ -10,6 +10,7 @@ export interface RuntimeImageUploadInputs {
   imagePath: string;
   authoredDigest: string;
   releaseIntentDigest: string;
+  bootstrapMode?: string;
   expectedSha256?: string;
   sourceImageUrl?: string;
   liskovUrl: string;
@@ -55,6 +56,12 @@ export interface RuntimeImageUploadOutputs {
   "auto-published": string;
   "cleanup-status": string;
   "provenance-json": string;
+}
+
+type RuntimeImageBootstrapMode = "standard" | "bridge-probe";
+
+interface ValidatedRuntimeImageUploadInputs extends RuntimeImageUploadInputs {
+  bootstrapMode: RuntimeImageBootstrapMode;
 }
 
 export async function inspectRuntimeImage(imagePath: string): Promise<RuntimeImageInfo> {
@@ -144,6 +151,7 @@ export async function uploadRuntimeImage(
       objectKey,
       digest: image.digest,
       byteSize: image.byteSize,
+      bootstrapMode: inputs.bootstrapMode,
       provenance
     }), "finalize response");
     const finalizedSession = record(finalized.uploadSession, "finalize.uploadSession");
@@ -188,7 +196,7 @@ export async function uploadRuntimeImage(
   }
 }
 
-function validateInputs(input: RuntimeImageUploadInputs): RuntimeImageUploadInputs {
+function validateInputs(input: RuntimeImageUploadInputs): ValidatedRuntimeImageUploadInputs {
   const applicationId = nonEmpty(input.applicationId, "application-id");
   const imagePath = nonEmpty(input.imagePath, "image-path");
   const authoredDigest = contractDigest(input.authoredDigest, "authored-digest");
@@ -197,15 +205,25 @@ function validateInputs(input: RuntimeImageUploadInputs): RuntimeImageUploadInpu
     "release-intent-digest"
   );
   const audience = nonEmpty(input.audience, "audience");
+  const bootstrapMode = validateBootstrapMode(input.bootstrapMode);
   return {
     ...input,
     applicationId,
     imagePath,
     authoredDigest,
     releaseIntentDigest,
+    bootstrapMode,
     audience,
     liskovUrl: normalizedBaseUrl(input.liskovUrl)
   };
+}
+
+function validateBootstrapMode(value?: string): RuntimeImageBootstrapMode {
+  const mode = value?.trim() || "standard";
+  if (mode !== "standard" && mode !== "bridge-probe") {
+    throw new Error("bootstrap-mode must be exactly standard or bridge-probe");
+  }
+  return mode;
 }
 
 function contractDigest(value: string, field: string): string {

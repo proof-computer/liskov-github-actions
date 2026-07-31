@@ -20,6 +20,11 @@ on:
         required: false
         type: string
         default: ""
+      bootstrap-mode:
+        description: "Bootstrap launcher mode. bridge-probe is reserved for the exact Liskov runtime-image canary."
+        required: false
+        type: string
+        default: "standard"
       attestation-repository:
         description: "Artifact attestation repository (owner/repo). Supply with attestation-source-digest and attestation-signer-workflow."
         required: false
@@ -217,6 +222,7 @@ jobs:
           image-path: ${{ runner.temp }}/liskov-runtime-image.tar.zst
           authored-digest: ${{ steps.manifest.outputs.authored-digest }}
           release-intent-digest: ${{ steps.manifest.outputs.release-intent-digest }}
+          bootstrap-mode: ${{ inputs.bootstrap-mode }}
           expected-sha256: ${{ inputs.expected-sha256 }}
           source-image-url: ${{ inputs.image-url }}
           liskov-url: ${{ inputs.liskov-url }}

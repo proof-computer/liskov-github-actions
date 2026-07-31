@@ -55049,6 +55049,7 @@ async function uploadRuntimeImage(rawInputs, dependencies) {
       objectKey,
       digest: image.digest,
       byteSize: image.byteSize,
+      bootstrapMode: inputs.bootstrapMode,
       provenance
     }), "finalize response");
     const finalizedSession = record(finalized.uploadSession, "finalize.uploadSession");
@@ -55099,15 +55100,24 @@ function validateInputs(input) {
     "release-intent-digest"
   );
   const audience = nonEmpty(input.audience, "audience");
+  const bootstrapMode = validateBootstrapMode(input.bootstrapMode);
   return {
     ...input,
     applicationId,
     imagePath,
     authoredDigest,
     releaseIntentDigest,
+    bootstrapMode,
     audience,
     liskovUrl: normalizedBaseUrl(input.liskovUrl)
   };
+}
+function validateBootstrapMode(value) {
+  const mode = value?.trim() || "standard";
+  if (mode !== "standard" && mode !== "bridge-probe") {
+    throw new Error("bootstrap-mode must be exactly standard or bridge-probe");
+  }
+  return mode;
 }
 function contractDigest(value, field) {
   const digest3 = value.trim();
@@ -55205,6 +55215,7 @@ async function run() {
     imagePath: core.getInput("image-path", { required: true }),
     authoredDigest: core.getInput("authored-digest", { required: true }),
     releaseIntentDigest: core.getInput("release-intent-digest", { required: true }),
+    bootstrapMode: core.getInput("bootstrap-mode") || "standard",
     expectedSha256: core.getInput("expected-sha256"),
     sourceImageUrl: core.getInput("source-image-url"),
     liskovUrl: core.getInput("liskov-url") || "https://liskov.proof.computer",
