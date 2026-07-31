@@ -127,6 +127,9 @@ Compose your own job from these (`uses: proof-computer/liskov-github-actions/act
   `@v1` and get the latest `v1.x`. Security-sensitive callers can pin a commit SHA.
 - `v1.0.1` adds optional source-commit and signer-workflow verification for
   runtime images without changing existing direct-URL callers.
+- `v1.0.2` adds the default-standard runtime-image `bootstrap-mode` input; the
+  `bridge-probe` value remains restricted by Liskov to its exact internal
+  canary workflow.
 - Reusable workflows reference their own JS actions by the literal `@v1` major tag,
   so a caller pinned to `@v1` executes the matching released action surface.
 
