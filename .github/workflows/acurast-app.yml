@@ -100,10 +100,10 @@ on:
         type: string
         default: "24"
       pnpm-version:
-        description: "pnpm version (the root may lack a packageManager field in a monorepo)."
+        description: "Optional pnpm version override when the caller lacks a packageManager field."
         required: false
         type: string
-        default: "10"
+        default: ""
       smoke:
         description: "Run `pnpm smoke:bundle`."
         required: false
@@ -143,7 +143,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
+      - name: Set up pnpm from caller packageManager
+        if: ${{ inputs.pnpm-version == '' }}
+        uses: pnpm/action-setup@v4
+
+      - name: Set up explicit pnpm version
+        if: ${{ inputs.pnpm-version != '' }}
+        uses: pnpm/action-setup@v4
         with:
           version: ${{ inputs.pnpm-version }}
       - uses: actions/setup-node@v4

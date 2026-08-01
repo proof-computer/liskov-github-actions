@@ -40,11 +40,20 @@ test("Acurast reusable workflow preserves defaults and wires prepared multi-targ
   }
   assert.equal(object(inputs.entrypoint, "entrypoint").default, "app.cjs");
   assert.equal(object(inputs["authored-manifest-path"], "authored path").required, false);
+  assert.equal(object(inputs["pnpm-version"], "pnpm version").default, "");
 
+  const pnpmFromCaller = stepNamed(steps, "Set up pnpm from caller packageManager");
+  const pnpmExplicit = stepNamed(steps, "Set up explicit pnpm version");
   const prepare = stepNamed(steps, "Prepare caller artifact");
   const pin = stepNamed(steps, "IPFS pin (no-spend)");
   const upload = stepNamed(steps, "Upload build manifest");
   const attest = stepNamed(steps, "Attest artifact pin");
+  assert.equal(pnpmFromCaller.if, "${{ inputs.pnpm-version == '' }}");
+  assert.equal(pnpmFromCaller.uses, "pnpm/action-setup@v4");
+  assert.equal(pnpmFromCaller.with, undefined);
+  assert.equal(pnpmExplicit.if, "${{ inputs.pnpm-version != '' }}");
+  assert.equal(pnpmExplicit.uses, "pnpm/action-setup@v4");
+  assert.equal(object(pnpmExplicit.with, "explicit pnpm.with").version, "${{ inputs.pnpm-version }}");
   assert.equal(prepare.if, "${{ inputs.prepare-command != '' }}");
   assert.equal(prepare["working-directory"], "${{ inputs.working-directory }}");
   assert.match(String(prepare.run), /bash -euo pipefail -c/u);
