@@ -1,6 +1,6 @@
 {
   "name": "liskov-github-actions",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "private": true,
   "type": "module",
   "description": "Reusable GitHub Actions + workflows for Liskov CI: manifest-bound artifact and runtime-image publication plus marketplace OIDC ingest.",

@@ -50,7 +50,10 @@ test("Acurast reusable workflow preserves defaults and wires prepared multi-targ
   const attest = stepNamed(steps, "Attest artifact pin");
   assert.equal(pnpmFromCaller.if, "${{ inputs.pnpm-version == '' }}");
   assert.equal(pnpmFromCaller.uses, "pnpm/action-setup@v4");
-  assert.equal(pnpmFromCaller.with, undefined);
+  assert.equal(
+    object(pnpmFromCaller.with, "caller pnpm.with").package_json_file,
+    "${{ inputs.working-directory }}/package.json"
+  );
   assert.equal(pnpmExplicit.if, "${{ inputs.pnpm-version != '' }}");
   assert.equal(pnpmExplicit.uses, "pnpm/action-setup@v4");
   assert.equal(object(pnpmExplicit.with, "explicit pnpm.with").version, "${{ inputs.pnpm-version }}");

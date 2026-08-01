@@ -146,6 +146,8 @@ jobs:
       - name: Set up pnpm from caller packageManager
         if: ${{ inputs.pnpm-version == '' }}
         uses: pnpm/action-setup@v4
+        with:
+          package_json_file: ${{ inputs.working-directory }}/package.json
 
       - name: Set up explicit pnpm version
         if: ${{ inputs.pnpm-version != '' }}
