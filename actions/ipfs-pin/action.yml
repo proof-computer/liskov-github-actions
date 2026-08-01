@@ -1,5 +1,5 @@
 name: "Liskov Acurast IPFS pin"
-description: "Build the Acurast deploy zip from dist/ and pin it (no-spend) to the Acurast IPFS proxy; writes a script manifest."
+description: "Build or read exact Acurast artifact bytes, pin them through the no-spend IPFS path, optionally verify gateway bytes, and write a script manifest."
 inputs:
   app-name:
     description: "Application name (zip manifest name + script-manifest kind)."
@@ -20,12 +20,28 @@ inputs:
     description: "Acurast manifest restartPolicy."
     required: false
     default: "onFailure"
+  artifact-path:
+    description: "Optional caller-prepared artifact path, relative to working-directory. Its exact bytes are uploaded instead of constructing a zip."
+    required: false
+    default: ""
+  metadata-path:
+    description: "Optional JSON sidecar containing only allowlisted Diagnostic artifact metadata, relative to working-directory."
+    required: false
+    default: ""
+  script-ipfs:
+    description: "Optional existing exact ipfs:// CID. Skips upload but still hashes the local artifact bytes."
+    required: false
+    default: ""
+  gateway-url:
+    description: "Optional credential-free HTTPS gateway URL; {cid} is replaced and fetched bytes must exactly equal the local artifact (4 attempts, 10s between attempts)."
+    required: false
+    default: ""
   ipfs-endpoint:
     description: "Override the Acurast IPFS proxy endpoint (else ACURAST_IPFS_URL env, else the default proxy)."
     required: false
     default: ""
   manifest-name:
-    description: "Output manifest filename (default <app-name>-script-manifest.json)."
+    description: "Output manifest path relative to working-directory (default <app-name>-script-manifest.json)."
     required: false
     default: ""
 outputs:
@@ -35,6 +51,8 @@ outputs:
     description: "sha256:<hex> of the uploaded zip."
   manifest-path:
     description: "Path to the written script manifest (feed to artifact-pin-attest)."
+  upload-performed:
+    description: "true when this run performed an IPFS upload; false when script-ipfs was reused."
 runs:
   using: "node24"
   main: "dist/index.cjs"

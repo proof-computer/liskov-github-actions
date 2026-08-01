@@ -995,14 +995,14 @@ var require_util = __commonJS({
         }
         const port = url.port != null ? url.port : url.protocol === "https:" ? 443 : 80;
         let origin = url.origin != null ? url.origin : `${url.protocol}//${url.hostname}:${port}`;
-        let path = url.path != null ? url.path : `${url.pathname || ""}${url.search || ""}`;
+        let path3 = url.path != null ? url.path : `${url.pathname || ""}${url.search || ""}`;
         if (origin.endsWith("/")) {
           origin = origin.substring(0, origin.length - 1);
         }
-        if (path && !path.startsWith("/")) {
-          path = `/${path}`;
+        if (path3 && !path3.startsWith("/")) {
+          path3 = `/${path3}`;
         }
-        url = new URL(origin + path);
+        url = new URL(origin + path3);
       }
       return url;
     }
@@ -2513,7 +2513,7 @@ var require_parseParams = __commonJS({
     var STATE_VALUE = 1;
     var STATE_CHARSET = 2;
     var STATE_LANG = 3;
-    function parseParams(str2) {
+    function parseParams(str) {
       const res = [];
       let state = STATE_KEY;
       let charset = "";
@@ -2521,9 +2521,9 @@ var require_parseParams = __commonJS({
       let escaping = false;
       let p = 0;
       let tmp = "";
-      const len = str2.length;
+      const len = str.length;
       for (var i = 0; i < len; ++i) {
-        const char = str2[i];
+        const char = str[i];
         if (char === "\\" && inquote) {
           if (escaping) {
             escaping = false;
@@ -2616,20 +2616,20 @@ var require_parseParams = __commonJS({
 var require_basename = __commonJS({
   "node_modules/.pnpm/@fastify+busboy@2.1.1/node_modules/@fastify/busboy/lib/utils/basename.js"(exports2, module2) {
     "use strict";
-    module2.exports = function basename(path) {
-      if (typeof path !== "string") {
+    module2.exports = function basename(path3) {
+      if (typeof path3 !== "string") {
         return "";
       }
-      for (var i = path.length - 1; i >= 0; --i) {
-        switch (path.charCodeAt(i)) {
+      for (var i = path3.length - 1; i >= 0; --i) {
+        switch (path3.charCodeAt(i)) {
           case 47:
           // '/'
           case 92:
-            path = path.slice(i + 1);
-            return path === ".." || path === "." ? "" : path;
+            path3 = path3.slice(i + 1);
+            return path3 === ".." || path3 === "." ? "" : path3;
         }
       }
-      return path === ".." || path === "." ? "" : path;
+      return path3 === ".." || path3 === "." ? "" : path3;
     };
   }
 });
@@ -3052,29 +3052,29 @@ var require_Decoder = __commonJS({
     function Decoder() {
       this.buffer = void 0;
     }
-    Decoder.prototype.write = function(str2) {
-      str2 = str2.replace(RE_PLUS, " ");
+    Decoder.prototype.write = function(str) {
+      str = str.replace(RE_PLUS, " ");
       let res = "";
       let i = 0;
       let p = 0;
-      const len = str2.length;
+      const len = str.length;
       for (; i < len; ++i) {
         if (this.buffer !== void 0) {
-          if (!HEX[str2.charCodeAt(i)]) {
+          if (!HEX[str.charCodeAt(i)]) {
             res += "%" + this.buffer;
             this.buffer = void 0;
             --i;
           } else {
-            this.buffer += str2[i];
+            this.buffer += str[i];
             ++p;
             if (this.buffer.length === 2) {
               res += String.fromCharCode(parseInt(this.buffer, 16));
               this.buffer = void 0;
             }
           }
-        } else if (str2[i] === "%") {
+        } else if (str[i] === "%") {
           if (i > p) {
-            res += str2.substring(p, i);
+            res += str.substring(p, i);
             p = i;
           }
           this.buffer = "";
@@ -3082,7 +3082,7 @@ var require_Decoder = __commonJS({
         }
       }
       if (p < len && this.buffer === void 0) {
-        res += str2.substring(p);
+        res += str.substring(p);
       }
       return res;
     };
@@ -4868,30 +4868,30 @@ var require_dataURL = __commonJS({
     function isHTTPWhiteSpace(char) {
       return char === "\r" || char === "\n" || char === "	" || char === " ";
     }
-    function removeHTTPWhitespace(str2, leading = true, trailing = true) {
+    function removeHTTPWhitespace(str, leading = true, trailing = true) {
       let lead = 0;
-      let trail = str2.length - 1;
+      let trail = str.length - 1;
       if (leading) {
-        for (; lead < str2.length && isHTTPWhiteSpace(str2[lead]); lead++) ;
+        for (; lead < str.length && isHTTPWhiteSpace(str[lead]); lead++) ;
       }
       if (trailing) {
-        for (; trail > 0 && isHTTPWhiteSpace(str2[trail]); trail--) ;
+        for (; trail > 0 && isHTTPWhiteSpace(str[trail]); trail--) ;
       }
-      return str2.slice(lead, trail + 1);
+      return str.slice(lead, trail + 1);
     }
     function isASCIIWhitespace(char) {
       return char === "\r" || char === "\n" || char === "	" || char === "\f" || char === " ";
     }
-    function removeASCIIWhitespace(str2, leading = true, trailing = true) {
+    function removeASCIIWhitespace(str, leading = true, trailing = true) {
       let lead = 0;
-      let trail = str2.length - 1;
+      let trail = str.length - 1;
       if (leading) {
-        for (; lead < str2.length && isASCIIWhitespace(str2[lead]); lead++) ;
+        for (; lead < str.length && isASCIIWhitespace(str[lead]); lead++) ;
       }
       if (trailing) {
-        for (; trail > 0 && isASCIIWhitespace(str2[trail]); trail--) ;
+        for (; trail > 0 && isASCIIWhitespace(str[trail]); trail--) ;
       }
-      return str2.slice(lead, trail + 1);
+      return str.slice(lead, trail + 1);
     }
     module2.exports = {
       dataURLProcessor,
@@ -5325,7 +5325,7 @@ var require_body = __commonJS({
         const boundary = `----formdata-undici-0${`${random(1e11)}`.padStart(11, "0")}`;
         const prefix = `--${boundary}\r
 Content-Disposition: form-data`;
-        const escape = (str2) => str2.replace(/\n/g, "%0A").replace(/\r/g, "%0D").replace(/"/g, "%22");
+        const escape = (str) => str.replace(/\n/g, "%0A").replace(/\r/g, "%0D").replace(/"/g, "%22");
         const normalizeLinefeeds = (value) => value.replace(/\r?\n|\r/g, "\r\n");
         const blobParts = [];
         const rn = new Uint8Array([13, 10]);
@@ -5659,7 +5659,7 @@ var require_request = __commonJS({
     }
     var Request = class _Request {
       constructor(origin, {
-        path,
+        path: path3,
         method,
         body,
         headers,
@@ -5673,11 +5673,11 @@ var require_request = __commonJS({
         throwOnError,
         expectContinue
       }, handler) {
-        if (typeof path !== "string") {
+        if (typeof path3 !== "string") {
           throw new InvalidArgumentError("path must be a string");
-        } else if (path[0] !== "/" && !(path.startsWith("http://") || path.startsWith("https://")) && method !== "CONNECT") {
+        } else if (path3[0] !== "/" && !(path3.startsWith("http://") || path3.startsWith("https://")) && method !== "CONNECT") {
           throw new InvalidArgumentError("path must be an absolute URL or start with a slash");
-        } else if (invalidPathRegex.exec(path) !== null) {
+        } else if (invalidPathRegex.exec(path3) !== null) {
           throw new InvalidArgumentError("invalid request path");
         }
         if (typeof method !== "string") {
@@ -5740,7 +5740,7 @@ var require_request = __commonJS({
         this.completed = false;
         this.aborted = false;
         this.upgrade = upgrade || null;
-        this.path = query ? util.buildURL(path, query) : path;
+        this.path = query ? util.buildURL(path3, query) : path3;
         this.origin = origin;
         this.idempotent = idempotent == null ? method === "HEAD" || method === "GET" : idempotent;
         this.blocking = blocking == null ? false : blocking;
@@ -6748,9 +6748,9 @@ var require_RedirectHandler = __commonJS({
           return this.handler.onHeaders(statusCode, headers, resume, statusText);
         }
         const { origin, pathname, search } = util.parseURL(new URL(this.location, this.opts.origin && new URL(this.opts.path, this.opts.origin)));
-        const path = search ? `${pathname}${search}` : pathname;
+        const path3 = search ? `${pathname}${search}` : pathname;
         this.opts.headers = cleanRequestHeaders(this.opts.headers, statusCode === 303, this.opts.origin !== origin);
-        this.opts.path = path;
+        this.opts.path = path3;
         this.opts.origin = origin;
         this.opts.maxRedirections = 0;
         this.opts.query = null;
@@ -7990,7 +7990,7 @@ var require_client = __commonJS({
         writeH2(client, client[kHTTP2Session], request);
         return;
       }
-      const { body, method, path, host, upgrade, headers, blocking, reset } = request;
+      const { body, method, path: path3, host, upgrade, headers, blocking, reset } = request;
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
       if (body && typeof body.read === "function") {
         body.read(0);
@@ -8040,7 +8040,7 @@ var require_client = __commonJS({
       if (blocking) {
         socket[kBlocking] = true;
       }
-      let header = `${method} ${path} HTTP/1.1\r
+      let header = `${method} ${path3} HTTP/1.1\r
 `;
       if (typeof host === "string") {
         header += `host: ${host}\r
@@ -8103,7 +8103,7 @@ upgrade: ${upgrade}\r
       return true;
     }
     function writeH2(client, session, request) {
-      const { body, method, path, host, upgrade, expectContinue, signal, headers: reqHeaders } = request;
+      const { body, method, path: path3, host, upgrade, expectContinue, signal, headers: reqHeaders } = request;
       let headers;
       if (typeof reqHeaders === "string") headers = Request[kHTTP2CopyHeaders](reqHeaders.trim());
       else headers = reqHeaders;
@@ -8146,7 +8146,7 @@ upgrade: ${upgrade}\r
         });
         return true;
       }
-      headers[HTTP2_HEADER_PATH] = path;
+      headers[HTTP2_HEADER_PATH] = path3;
       headers[HTTP2_HEADER_SCHEME] = "https";
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
       if (body && typeof body.read === "function") {
@@ -10386,20 +10386,20 @@ var require_mock_utils = __commonJS({
       }
       return true;
     }
-    function safeUrl(path) {
-      if (typeof path !== "string") {
-        return path;
+    function safeUrl(path3) {
+      if (typeof path3 !== "string") {
+        return path3;
       }
-      const pathSegments = path.split("?");
+      const pathSegments = path3.split("?");
       if (pathSegments.length !== 2) {
-        return path;
+        return path3;
       }
       const qp = new URLSearchParams(pathSegments.pop());
       qp.sort();
       return [...pathSegments, qp.toString()].join("?");
     }
-    function matchKey(mockDispatch2, { path, method, body, headers }) {
-      const pathMatch = matchValue(mockDispatch2.path, path);
+    function matchKey(mockDispatch2, { path: path3, method, body, headers }) {
+      const pathMatch = matchValue(mockDispatch2.path, path3);
       const methodMatch = matchValue(mockDispatch2.method, method);
       const bodyMatch = typeof mockDispatch2.body !== "undefined" ? matchValue(mockDispatch2.body, body) : true;
       const headersMatch = matchHeaders(mockDispatch2, headers);
@@ -10417,7 +10417,7 @@ var require_mock_utils = __commonJS({
     function getMockDispatch(mockDispatches, key) {
       const basePath = key.query ? buildURL(key.path, key.query) : key.path;
       const resolvedPath = typeof basePath === "string" ? safeUrl(basePath) : basePath;
-      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path }) => matchValue(safeUrl(path), resolvedPath));
+      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path: path3 }) => matchValue(safeUrl(path3), resolvedPath));
       if (matchedMockDispatches.length === 0) {
         throw new MockNotMatchedError(`Mock dispatch not matched for path '${resolvedPath}'`);
       }
@@ -10454,9 +10454,9 @@ var require_mock_utils = __commonJS({
       }
     }
     function buildKey(opts) {
-      const { path, method, body, headers, query } = opts;
+      const { path: path3, method, body, headers, query } = opts;
       return {
-        path,
+        path: path3,
         method,
         body,
         headers,
@@ -10905,10 +10905,10 @@ var require_pending_interceptors_formatter = __commonJS({
       }
       format(pendingInterceptors) {
         const withPrettyHeaders = pendingInterceptors.map(
-          ({ method, path, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
+          ({ method, path: path3, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
             Method: method,
             Origin: origin,
-            Path: path,
+            Path: path3,
             "Status code": statusCode,
             Persistent: persist ? "\u2705" : "\u274C",
             Invocations: timesInvoked,
@@ -15528,8 +15528,8 @@ var require_util6 = __commonJS({
         }
       }
     }
-    function validateCookiePath(path) {
-      for (const char of path) {
+    function validateCookiePath(path3) {
+      for (const char of path3) {
         const code = char.charCodeAt(0);
         if (code < 33 || char === ";") {
           throw new Error("Invalid cookie path");
@@ -15828,8 +15828,8 @@ var require_cookies = __commonJS({
       webidl.argumentLengthCheck(arguments, 2, { header: "setCookie" });
       webidl.brandCheck(headers, Headers, { strict: false });
       cookie = webidl.converters.Cookie(cookie);
-      const str2 = stringify(cookie);
-      if (str2) {
+      const str = stringify(cookie);
+      if (str) {
         headers.append("Set-Cookie", stringify(cookie));
       }
     }
@@ -17209,11 +17209,11 @@ var require_undici = __commonJS({
           if (typeof opts.path !== "string") {
             throw new InvalidArgumentError("invalid opts.path");
           }
-          let path = opts.path;
+          let path3 = opts.path;
           if (!opts.path.startsWith("/")) {
-            path = `/${path}`;
+            path3 = `/${path3}`;
           }
-          url = new URL(util.parseOrigin(url).origin + path);
+          url = new URL(util.parseOrigin(url).origin + path3);
         } else {
           if (!opts) {
             opts = typeof url === "object" ? url : {};
@@ -18436,7 +18436,7 @@ var require_path_utils = __commonJS({
     };
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.toPlatformPath = exports2.toWin32Path = exports2.toPosixPath = void 0;
-    var path = __importStar(require("path"));
+    var path3 = __importStar(require("path"));
     function toPosixPath(pth) {
       return pth.replace(/[\\]/g, "/");
     }
@@ -18446,7 +18446,7 @@ var require_path_utils = __commonJS({
     }
     exports2.toWin32Path = toWin32Path;
     function toPlatformPath(pth) {
-      return pth.replace(/[/\\]/g, path.sep);
+      return pth.replace(/[/\\]/g, path3.sep);
     }
     exports2.toPlatformPath = toPlatformPath;
   }
@@ -18510,7 +18510,7 @@ var require_io_util = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCmdPath = exports2.tryGetExecutablePath = exports2.isRooted = exports2.isDirectory = exports2.exists = exports2.READONLY = exports2.UV_FS_O_EXLOCK = exports2.IS_WINDOWS = exports2.unlink = exports2.symlink = exports2.stat = exports2.rmdir = exports2.rm = exports2.rename = exports2.readlink = exports2.readdir = exports2.open = exports2.mkdir = exports2.lstat = exports2.copyFile = exports2.chmod = void 0;
     var fs = __importStar(require("fs"));
-    var path = __importStar(require("path"));
+    var path3 = __importStar(require("path"));
     _a = fs.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
     exports2.IS_WINDOWS = process.platform === "win32";
     exports2.UV_FS_O_EXLOCK = 268435456;
@@ -18559,7 +18559,7 @@ var require_io_util = __commonJS({
         }
         if (stats && stats.isFile()) {
           if (exports2.IS_WINDOWS) {
-            const upperExt = path.extname(filePath).toUpperCase();
+            const upperExt = path3.extname(filePath).toUpperCase();
             if (extensions.some((validExt) => validExt.toUpperCase() === upperExt)) {
               return filePath;
             }
@@ -18583,11 +18583,11 @@ var require_io_util = __commonJS({
           if (stats && stats.isFile()) {
             if (exports2.IS_WINDOWS) {
               try {
-                const directory = path.dirname(filePath);
-                const upperName = path.basename(filePath).toUpperCase();
+                const directory = path3.dirname(filePath);
+                const upperName = path3.basename(filePath).toUpperCase();
                 for (const actualName of yield exports2.readdir(directory)) {
                   if (upperName === actualName.toUpperCase()) {
-                    filePath = path.join(directory, actualName);
+                    filePath = path3.join(directory, actualName);
                     break;
                   }
                 }
@@ -18682,7 +18682,7 @@ var require_io = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.findInPath = exports2.which = exports2.mkdirP = exports2.rmRF = exports2.mv = exports2.cp = void 0;
     var assert_1 = require("assert");
-    var path = __importStar(require("path"));
+    var path3 = __importStar(require("path"));
     var ioUtil = __importStar(require_io_util());
     function cp(source, dest, options = {}) {
       return __awaiter(this, void 0, void 0, function* () {
@@ -18691,7 +18691,7 @@ var require_io = __commonJS({
         if (destStat && destStat.isFile() && !force) {
           return;
         }
-        const newDest = destStat && destStat.isDirectory() && copySourceDirectory ? path.join(dest, path.basename(source)) : dest;
+        const newDest = destStat && destStat.isDirectory() && copySourceDirectory ? path3.join(dest, path3.basename(source)) : dest;
         if (!(yield ioUtil.exists(source))) {
           throw new Error(`no such file or directory: ${source}`);
         }
@@ -18703,7 +18703,7 @@ var require_io = __commonJS({
             yield cpDirRecursive(source, newDest, 0, force);
           }
         } else {
-          if (path.relative(source, newDest) === "") {
+          if (path3.relative(source, newDest) === "") {
             throw new Error(`'${newDest}' and '${source}' are the same file`);
           }
           yield copyFile(source, newDest, force);
@@ -18716,7 +18716,7 @@ var require_io = __commonJS({
         if (yield ioUtil.exists(dest)) {
           let destExists = true;
           if (yield ioUtil.isDirectory(dest)) {
-            dest = path.join(dest, path.basename(source));
+            dest = path3.join(dest, path3.basename(source));
             destExists = yield ioUtil.exists(dest);
           }
           if (destExists) {
@@ -18727,7 +18727,7 @@ var require_io = __commonJS({
             }
           }
         }
-        yield mkdirP(path.dirname(dest));
+        yield mkdirP(path3.dirname(dest));
         yield ioUtil.rename(source, dest);
       });
     }
@@ -18790,7 +18790,7 @@ var require_io = __commonJS({
         }
         const extensions = [];
         if (ioUtil.IS_WINDOWS && process.env["PATHEXT"]) {
-          for (const extension of process.env["PATHEXT"].split(path.delimiter)) {
+          for (const extension of process.env["PATHEXT"].split(path3.delimiter)) {
             if (extension) {
               extensions.push(extension);
             }
@@ -18803,12 +18803,12 @@ var require_io = __commonJS({
           }
           return [];
         }
-        if (tool.includes(path.sep)) {
+        if (tool.includes(path3.sep)) {
           return [];
         }
         const directories = [];
         if (process.env.PATH) {
-          for (const p of process.env.PATH.split(path.delimiter)) {
+          for (const p of process.env.PATH.split(path3.delimiter)) {
             if (p) {
               directories.push(p);
             }
@@ -18816,7 +18816,7 @@ var require_io = __commonJS({
         }
         const matches = [];
         for (const directory of directories) {
-          const filePath = yield ioUtil.tryGetExecutablePath(path.join(directory, tool), extensions);
+          const filePath = yield ioUtil.tryGetExecutablePath(path3.join(directory, tool), extensions);
           if (filePath) {
             matches.push(filePath);
           }
@@ -18932,7 +18932,7 @@ var require_toolrunner = __commonJS({
     var os = __importStar(require("os"));
     var events = __importStar(require("events"));
     var child = __importStar(require("child_process"));
-    var path = __importStar(require("path"));
+    var path3 = __importStar(require("path"));
     var io = __importStar(require_io());
     var ioUtil = __importStar(require_io_util());
     var timers_1 = require("timers");
@@ -19019,8 +19019,8 @@ var require_toolrunner = __commonJS({
         }
         return this.args;
       }
-      _endsWith(str2, end) {
-        return str2.endsWith(end);
+      _endsWith(str, end) {
+        return str.endsWith(end);
       }
       _isCmdFile() {
         const upperToolPath = this.toolPath.toUpperCase();
@@ -19147,7 +19147,7 @@ var require_toolrunner = __commonJS({
       exec() {
         return __awaiter(this, void 0, void 0, function* () {
           if (!ioUtil.isRooted(this.toolPath) && (this.toolPath.includes("/") || IS_WINDOWS && this.toolPath.includes("\\"))) {
-            this.toolPath = path.resolve(process.cwd(), this.options.cwd || process.cwd(), this.toolPath);
+            this.toolPath = path3.resolve(process.cwd(), this.options.cwd || process.cwd(), this.toolPath);
           }
           this.toolPath = yield io.which(this.toolPath, true);
           return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
@@ -19647,7 +19647,7 @@ var require_core = __commonJS({
     var file_command_1 = require_file_command();
     var utils_1 = require_utils();
     var os = __importStar(require("os"));
-    var path = __importStar(require("path"));
+    var path3 = __importStar(require("path"));
     var oidc_utils_1 = require_oidc_utils();
     var ExitCode;
     (function(ExitCode2) {
@@ -19675,7 +19675,7 @@ var require_core = __commonJS({
       } else {
         (0, command_1.issueCommand)("add-path", {}, inputPath);
       }
-      process.env["PATH"] = `${inputPath}${path.delimiter}${process.env["PATH"]}`;
+      process.env["PATH"] = `${inputPath}${path3.delimiter}${process.env["PATH"]}`;
     }
     exports2.addPath = addPath;
     function getInput2(name, options) {
@@ -19813,8 +19813,137 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
 });
 
 // actions/artifact-pin-attest/src/index.ts
-var import_promises = require("node:fs/promises");
+var import_node_path2 = __toESM(require("node:path"), 1);
 var core = __toESM(require_core(), 1);
+
+// actions/artifact-pin-attest/src/runtime.ts
+var import_promises = require("node:fs/promises");
+var import_node_path = __toESM(require("node:path"), 1);
+
+// actions/shared/src/diagnostics.ts
+var TOP_LEVEL_FIELDS = /* @__PURE__ */ new Set([
+  "artifact",
+  "devtools",
+  "failure",
+  "scenarioArtifact",
+  "sourceBundleSha256"
+]);
+function sanitizeDiagnosticMetadata(value, source = "diagnostic metadata") {
+  if (value === void 0 || value === null) return void 0;
+  const input = exactRecord(value, source, TOP_LEVEL_FIELDS);
+  const output = {};
+  if (input.devtools !== void 0) {
+    const devtools = exactRecord(
+      input.devtools,
+      `${source}.devtools`,
+      /* @__PURE__ */ new Set(["enabled", "injected", "uploadMode"])
+    );
+    const sanitized = {};
+    optionalBoolean(devtools, sanitized, "enabled", `${source}.devtools`);
+    optionalBoolean(devtools, sanitized, "injected", `${source}.devtools`);
+    if (devtools.uploadMode !== void 0) {
+      if (devtools.uploadMode !== "direct") {
+        throw new Error(`${source}.devtools.uploadMode must be direct`);
+      }
+      sanitized.uploadMode = "direct";
+    }
+    if (Object.keys(sanitized).length > 0) output.devtools = sanitized;
+  }
+  if (input.artifact !== void 0) {
+    const artifact = exactRecord(
+      input.artifact,
+      `${source}.artifact`,
+      /* @__PURE__ */ new Set(["format", "entrypoint", "restartPolicy"])
+    );
+    const sanitized = {};
+    if (artifact.format !== void 0) {
+      if (artifact.format !== "raw-cjs" && artifact.format !== "acurast-zip") {
+        throw new Error(`${source}.artifact.format must be raw-cjs or acurast-zip`);
+      }
+      sanitized.format = artifact.format;
+    }
+    if (artifact.entrypoint !== void 0) {
+      sanitized.entrypoint = safeRelativeArtifactPath(
+        artifact.entrypoint,
+        `${source}.artifact.entrypoint`
+      );
+    }
+    if (artifact.restartPolicy !== void 0) {
+      if (artifact.restartPolicy !== "no" && artifact.restartPolicy !== "onFailure") {
+        throw new Error(`${source}.artifact.restartPolicy must be no or onFailure`);
+      }
+      sanitized.restartPolicy = artifact.restartPolicy;
+    }
+    if (Object.keys(sanitized).length > 0) output.artifact = sanitized;
+  }
+  if (input.sourceBundleSha256 !== void 0) {
+    if (typeof input.sourceBundleSha256 !== "string" || !/^[0-9a-f]{64}$/iu.test(input.sourceBundleSha256)) {
+      throw new Error(`${source}.sourceBundleSha256 must be a 64-character SHA-256`);
+    }
+    output.sourceBundleSha256 = input.sourceBundleSha256.toLowerCase();
+  }
+  if (input.failure !== void 0) {
+    const failure = exactRecord(
+      input.failure,
+      `${source}.failure`,
+      /* @__PURE__ */ new Set(["mode"])
+    );
+    if (failure.mode !== void 0) {
+      if (failure.mode !== "exit" && failure.mode !== "acurast-really-exit") {
+        throw new Error(`${source}.failure.mode must be exit or acurast-really-exit`);
+      }
+      output.failure = { mode: failure.mode };
+    }
+  }
+  if (input.scenarioArtifact !== void 0) {
+    const scenario = exactRecord(
+      input.scenarioArtifact,
+      `${source}.scenarioArtifact`,
+      /* @__PURE__ */ new Set(["profile", "fixture"])
+    );
+    const sanitized = {};
+    if (scenario.profile !== void 0) {
+      if (typeof scenario.profile !== "string" || !/^[A-Za-z0-9._-]{1,128}$/u.test(scenario.profile)) {
+        throw new Error(
+          `${source}.scenarioArtifact.profile must be a bounded identifier`
+        );
+      }
+      sanitized.profile = scenario.profile;
+    }
+    if (scenario.fixture !== void 0) {
+      if (scenario.fixture !== "runnable" && scenario.fixture !== "missing-entrypoint") {
+        throw new Error(
+          `${source}.scenarioArtifact.fixture must be runnable or missing-entrypoint`
+        );
+      }
+      sanitized.fixture = scenario.fixture;
+    }
+    if (Object.keys(sanitized).length > 0) output.scenarioArtifact = sanitized;
+  }
+  return Object.keys(output).length > 0 ? output : void 0;
+}
+function exactRecord(value, source, allowedFields) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${source} must be an object`);
+  }
+  const record = value;
+  for (const key of Object.keys(record)) {
+    if (!allowedFields.has(key)) throw new Error(`${source}.${key} is not allowed`);
+  }
+  return record;
+}
+function safeRelativeArtifactPath(value, source) {
+  if (typeof value !== "string" || value.length === 0 || value.length > 256 || value.includes("\\") || value.startsWith("/") || value.split("/").some((part) => part === "" || part === "." || part === "..") || !/^[A-Za-z0-9._/-]+$/u.test(value)) {
+    throw new Error(`${source} must be a safe relative artifact path`);
+  }
+  return value;
+}
+function optionalBoolean(input, output, field, source) {
+  const value = input[field];
+  if (value === void 0) return;
+  if (typeof value !== "boolean") throw new Error(`${source}.${field} must be boolean`);
+  output[field] = value;
+}
 
 // actions/artifact-pin-attest/src/manifest.ts
 var import_node_crypto = require("node:crypto");
@@ -19908,66 +20037,220 @@ function requiredClaim(claims, name) {
   return value;
 }
 
+// actions/artifact-pin-attest/src/runtime.ts
+async function runArtifactPinAttest(inputs, dependencies) {
+  const buildManifest = jsonRecord(
+    JSON.parse(await (0, import_promises.readFile)(inputs.buildManifestPath, "utf8")),
+    `build manifest ${inputs.buildManifestPath}`
+  );
+  const scriptCid = stringField(buildManifest, "scriptIpfs") ?? stringField(buildManifest, "scriptCid");
+  const bundleDigest = stringField(buildManifest, "scriptHash") ?? stringField(buildManifest, "bundleSha256");
+  if (!scriptCid || !/^ipfs:\/\/[A-Za-z0-9]+$/u.test(scriptCid)) {
+    throw new Error(`Manifest ${inputs.buildManifestPath} is missing a valid scriptIpfs`);
+  }
+  if (!bundleDigest || !/^(?:sha256:)?[0-9a-f]{64}$/iu.test(bundleDigest)) {
+    throw new Error(
+      `Manifest ${inputs.buildManifestPath} is missing a valid scriptHash/bundleSha256`
+    );
+  }
+  const diagnostics = sanitizeDiagnosticMetadata(
+    buildManifest.diagnostics,
+    `build manifest ${inputs.buildManifestPath}.diagnostics`
+  );
+  const targets = await resolveArtifactPinTargets(inputs, dependencies.repositoryRoot);
+  const preparedTargets = await Promise.all(targets.map(async (target) => {
+    const manifestFile = resolveWithin(
+      dependencies.repositoryRoot,
+      target.authoredManifestPath,
+      "authoredManifestPath"
+    );
+    const authoredManifest = jsonRecord(
+      JSON.parse(await (0, import_promises.readFile)(manifestFile, "utf8")),
+      `authored manifest ${target.authoredManifestPath}`
+    );
+    return {
+      target,
+      bindings: artifactPinBindings(authoredManifest, target.applicationId)
+    };
+  }));
+  const token = await dependencies.getIdToken(inputs.audience);
+  const oidcProvenance = artifactProvenanceFromOidcToken(token);
+  const results = [];
+  for (const { target, bindings } of preparedTargets) {
+    const body = {
+      domain: "proof.slipway.github-artifact-pin.v1",
+      applicationId: target.applicationId,
+      scriptCid,
+      bundleDigest,
+      authoredDigest: bindings.authoredDigest,
+      releaseIntentDigest: bindings.releaseIntentDigest,
+      generatedAt: stringField(buildManifest, "generatedAt") ?? dependencies.now().toISOString(),
+      encryption: { mode: bindings.encryptionMode },
+      provenance: {
+        repository: oidcProvenance.repository,
+        ref: oidcProvenance.ref,
+        sha: oidcProvenance.sha,
+        workflow: dependencies.environment.GITHUB_WORKFLOW,
+        workflow_ref: oidcProvenance.workflowRef,
+        run_id: dependencies.environment.GITHUB_RUN_ID,
+        run_attempt: dependencies.environment.GITHUB_RUN_ATTEMPT,
+        actor: dependencies.environment.GITHUB_ACTOR,
+        event_name: dependencies.environment.GITHUB_EVENT_NAME
+      }
+    };
+    if (diagnostics) body.diagnostics = diagnostics;
+    const url = inputs.urlTemplate.replaceAll(
+      "{applicationId}",
+      encodeURIComponent(target.applicationId)
+    );
+    const response = await dependencies.fetchImpl(url, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        accept: "application/json",
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
+    const responseText = await response.text();
+    if (!response.ok) {
+      throw new Error(
+        `Artifact pin post failed for ${target.applicationId}: ${response.status} ${redact(responseText)}`
+      );
+    }
+    const result = responseText ? jsonRecord(JSON.parse(responseText), `artifact pin response for ${target.applicationId}`) : {};
+    const artifactVersionId = stringField(result, "artifactVersionId");
+    if (!artifactVersionId) {
+      throw new Error(
+        `Artifact pin response for ${target.applicationId} omitted artifactVersionId`
+      );
+    }
+    results.push({ applicationId: target.applicationId, artifactVersionId });
+  }
+  const artifactVersionIds = results.map((result) => result.artifactVersionId);
+  return {
+    cid: scriptCid,
+    digest: bundleDigest,
+    artifactVersionId: artifactVersionIds[0],
+    artifactVersionIds,
+    results
+  };
+}
+async function resolveArtifactPinTargets(inputs, repositoryRoot) {
+  const targetsPath = inputs.targetsPath?.trim();
+  const applicationId = inputs.applicationId?.trim();
+  const authoredManifestPath = inputs.authoredManifestPath?.trim();
+  if (!targetsPath) {
+    if (!applicationId || !authoredManifestPath) {
+      throw new Error(
+        "application-id and authored-manifest-path are required when targets-path is absent"
+      );
+    }
+    return [{
+      applicationId: validateApplicationId(applicationId),
+      authoredManifestPath: validateRepositoryPath(authoredManifestPath, "authored-manifest-path")
+    }];
+  }
+  if (applicationId || authoredManifestPath) {
+    throw new Error(
+      "targets-path is mutually exclusive with application-id and authored-manifest-path"
+    );
+  }
+  const parsed = JSON.parse(
+    await (0, import_promises.readFile)(resolveWithin(repositoryRoot, targetsPath, "targets-path"), "utf8")
+  );
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    throw new Error("targets-path must contain a non-empty JSON array");
+  }
+  const seen = /* @__PURE__ */ new Set();
+  return parsed.map((value, index) => {
+    const target = exactRecord(
+      value,
+      `targets[${index}]`,
+      /* @__PURE__ */ new Set(["applicationId", "authoredManifestPath"])
+    );
+    const id = validateApplicationId(target.applicationId);
+    if (seen.has(id)) throw new Error(`targets-path repeats applicationId ${id}`);
+    seen.add(id);
+    return {
+      applicationId: id,
+      authoredManifestPath: validateRepositoryPath(
+        target.authoredManifestPath,
+        `targets[${index}].authoredManifestPath`
+      )
+    };
+  });
+}
+function validateApplicationId(value) {
+  if (typeof value !== "string" || value.length === 0 || value.length > 160 || value.trim() !== value || /[\s/\\]/u.test(value)) {
+    throw new Error("applicationId must be a bounded non-whitespace identifier");
+  }
+  return value;
+}
+function validateRepositoryPath(value, source) {
+  if (typeof value !== "string" || value.length === 0 || value.length > 512 || value.includes("\\") || value.startsWith("/") || value.split("/").some((part) => part === "" || part === "." || part === "..")) {
+    throw new Error(`${source} must be a safe repository-relative path`);
+  }
+  return value;
+}
+function resolveWithin(root, candidate, field) {
+  const resolvedRoot = import_node_path.default.resolve(root);
+  const resolved = import_node_path.default.resolve(resolvedRoot, candidate);
+  const relative = import_node_path.default.relative(resolvedRoot, resolved);
+  if (relative === ".." || relative.startsWith(`..${import_node_path.default.sep}`) || import_node_path.default.isAbsolute(relative)) {
+    throw new Error(`${field} must stay within the repository`);
+  }
+  return resolved;
+}
+function jsonRecord(value, source) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${source} must be a JSON object`);
+  }
+  return value;
+}
+function stringField(record, field) {
+  const value = record[field];
+  return typeof value === "string" && value.length > 0 ? value : void 0;
+}
+function redact(value) {
+  return value.replace(/[A-Za-z0-9_-]{24,}/gu, "[redacted]").slice(0, 400);
+}
+
 // actions/artifact-pin-attest/src/index.ts
 var DEFAULT_URL = "https://liskov.proof.computer/api/applications/{applicationId}/artifact-pins/github";
 async function run() {
-  const applicationId = core.getInput("application-id", { required: true }).trim();
+  const applicationId = optionalInput("application-id");
   const buildManifestPath = core.getInput("build-manifest-path", { required: true });
-  const authoredManifestPath = core.getInput("authored-manifest-path", { required: true });
+  const authoredManifestPath = optionalInput("authored-manifest-path");
+  const targetsPath = optionalInput("targets-path");
   const audience = core.getInput("audience") || "slipway-artifact-pin";
   const urlTemplate = core.getInput("pin-url") || process.env.SLIPWAY_ARTIFACT_PIN_URL || DEFAULT_URL;
-  const buildManifest = JSON.parse(await (0, import_promises.readFile)(buildManifestPath, "utf8"));
-  const authoredManifest = JSON.parse(
-    await (0, import_promises.readFile)(authoredManifestPath, "utf8")
-  );
-  const bindings = artifactPinBindings(authoredManifest, applicationId);
-  const scriptCid = str(buildManifest, "scriptIpfs") ?? str(buildManifest, "scriptCid");
-  const bundleDigest = str(buildManifest, "scriptHash") ?? str(buildManifest, "bundleSha256");
-  if (!scriptCid) throw new Error(`Manifest ${buildManifestPath} is missing scriptIpfs`);
-  if (!bundleDigest) throw new Error(`Manifest ${buildManifestPath} is missing scriptHash/bundleSha256`);
-  const token = await core.getIDToken(audience);
-  const oidcProvenance = artifactProvenanceFromOidcToken(token);
-  const url = urlTemplate.replaceAll("{applicationId}", encodeURIComponent(applicationId));
-  const body = {
-    domain: "proof.slipway.github-artifact-pin.v1",
+  const result = await runArtifactPinAttest({
     applicationId,
-    scriptCid,
-    bundleDigest,
-    authoredDigest: bindings.authoredDigest,
-    releaseIntentDigest: bindings.releaseIntentDigest,
-    generatedAt: str(buildManifest, "generatedAt") ?? (/* @__PURE__ */ new Date()).toISOString(),
-    encryption: { mode: bindings.encryptionMode },
-    provenance: {
-      repository: oidcProvenance.repository,
-      ref: oidcProvenance.ref,
-      sha: oidcProvenance.sha,
-      workflow: process.env.GITHUB_WORKFLOW,
-      workflow_ref: oidcProvenance.workflowRef,
-      run_id: process.env.GITHUB_RUN_ID,
-      run_attempt: process.env.GITHUB_RUN_ATTEMPT,
-      actor: process.env.GITHUB_ACTOR,
-      event_name: process.env.GITHUB_EVENT_NAME
-    }
-  };
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { authorization: `Bearer ${token}`, accept: "application/json", "content-type": "application/json" },
-    body: JSON.stringify(body)
+    buildManifestPath,
+    authoredManifestPath,
+    targetsPath,
+    audience,
+    urlTemplate
+  }, {
+    getIdToken: (tokenAudience) => core.getIDToken(tokenAudience),
+    fetchImpl: fetch,
+    environment: process.env,
+    now: () => /* @__PURE__ */ new Date(),
+    repositoryRoot: import_node_path2.default.resolve(process.env.GITHUB_WORKSPACE || ".")
   });
-  const responseText = await response.text();
-  if (!response.ok) throw new Error(`Artifact pin post failed for ${applicationId}: ${response.status} ${responseText}`);
-  const result = responseText ? JSON.parse(responseText) : {};
-  const artifactVersionId = str(result, "artifactVersionId");
-  if (!artifactVersionId) {
-    throw new Error(`Artifact pin response for ${applicationId} omitted artifactVersionId`);
+  for (const item of result.results) {
+    core.info(`Attested ${item.applicationId} -> ${item.artifactVersionId}`);
   }
-  core.info(`Attested ${applicationId} -> ${artifactVersionId}`);
-  core.setOutput("cid", scriptCid);
-  core.setOutput("digest", bundleDigest);
-  core.setOutput("artifact-version-id", artifactVersionId);
+  core.setOutput("cid", result.cid);
+  core.setOutput("digest", result.digest);
+  core.setOutput("artifact-version-id", result.artifactVersionId);
+  core.setOutput("artifact-version-ids", JSON.stringify(result.artifactVersionIds));
+  core.setOutput("results-json", JSON.stringify(result.results));
+  core.setOutput("target-count", String(result.results.length));
 }
-function str(record, field) {
-  const value = record[field];
-  return typeof value === "string" && value.length > 0 ? value : void 0;
+function optionalInput(name) {
+  const value = core.getInput(name).trim();
+  return value || void 0;
 }
 run().catch((error) => core.setFailed(error instanceof Error ? error.message : String(error)));

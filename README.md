@@ -30,10 +30,42 @@ jobs:
 
 Runs `pnpm install --frozen-lockfile → typecheck → test → build` (optional `smoke`),
 pins the Acurast deploy zip to IPFS **no-spend**, and posts a **GitHub-OIDC** artifact
-pin bound to the exact authored and release-intent digests. Inputs: `app-id` and
-`authored-manifest-path` (required), `working-directory`, `entrypoint`,
-`extra-files`, `node-version`, `smoke`, `attest`, `pin-url`. The attest action
-returns Liskov's deterministic `artifact-version-id`.
+pin bound to the exact authored and release-intent digests. Existing callers keep
+the generated-zip defaults with `app-id`, `authored-manifest-path`,
+`working-directory`, `entrypoint`, `extra-files`, `node-version`, `smoke`, `attest`,
+and `pin-url`. The workflow exposes the CID, digest, uploaded build-manifest path,
+artifact-version IDs, per-Application result JSON, and target count.
+
+Callers that already prepare deploy bytes may set `prepare-command` and
+`artifact-path`. The path is relative to `working-directory`; `ipfs-pin` hashes and
+uploads those exact bytes without repacking them. `artifact-metadata-path` accepts a
+strict JSON sidecar containing only the currently supported Diagnostic evidence:
+optional `devtools` (`enabled`, `injected`, and `uploadMode: "direct"`), `artifact`
+(`format`, safe `entrypoint`, and `restartPolicy`), `sourceBundleSha256`, `failure`,
+and `scenarioArtifact`. Unknown fields and unsafe paths fail closed. OIDC claims,
+repository identity, refs, and workflow identity never come from this sidecar.
+
+`script-ipfs` reuses an exact `ipfs://CID` without another upload while still hashing
+the local bytes. Set `ipfs-gateway-url` to a credential-free HTTPS URL (with optional
+`{cid}`) to require exact gateway-byte equality. Verification allows four propagation
+attempts with ten seconds between attempts. The build manifest is always uploaded as
+a GitHub Actions run artifact.
+
+For one prepared artifact shared by multiple Applications, set
+`artifact-targets-path` instead of `authored-manifest-path`. It is a repository-root
+relative non-empty JSON array with no extra keys:
+
+```json
+[
+  {"applicationId":"diagnostic-a","authoredManifestPath":".liskov/diagnostic-a.json"},
+  {"applicationId":"diagnostic-b","authoredManifestPath":".liskov/diagnostic-b.json"}
+]
+```
+
+Each exact authored manifest must be V4, name the matching Application, and authorize
+an unencrypted `ipfs_bundle` build. The shared action mints one OIDC token, posts one
+manifest-bound pin per target, and retains the original single-target inputs and first
+`artifact-version-id` output for compatibility.
 
 ### `marketplace-ingest.yml` — catalog OIDC push (ADR-0006 §A1)
 
@@ -150,8 +182,8 @@ Compose your own job from these (`uses: proof-computer/liskov-github-actions/act
 | --- | --- | --- |
 | `setup` | composite | pnpm + Node + `install --frozen-lockfile` |
 | `acurast-build` | composite | `typecheck → test → build` (+ optional `smoke`) |
-| `ipfs-pin` | JS | build the Acurast deploy zip from `dist/`, pin no-spend → `cid`/`digest`/`manifest-path` |
-| `artifact-pin-attest` | JS | OIDC → `POST /api/applications/<id>/artifact-pins/github` |
+| `ipfs-pin` | JS | generate a zip or read exact prepared bytes, optionally reuse/verify a CID, pin no-spend → `cid`/`digest`/`manifest-path` |
+| `artifact-pin-attest` | JS | OIDC → one or more manifest-bound `POST /api/applications/<id>/artifact-pins/github` calls |
 | `marketplace-ingest` | JS | OIDC → `POST /api/marketplace/ingest` |
 | `policy-import` | JS | OIDC → `POST /api/applications/<id>/policy-imports/github` (import the repo's authored manifest as a draft) |
 | `runtime-image-upload` | JS | Hash → manifest-bound scoped Tigris upload → fresh-OIDC finalize |
@@ -166,6 +198,9 @@ Compose your own job from these (`uses: proof-computer/liskov-github-actions/act
 - `v1.0.2` adds the default-standard runtime-image `bootstrap-mode` input; the
   `bridge-probe` value remains restricted by Liskov to its exact internal
   canary workflow.
+- `v1.2.0` adds backward-compatible caller-prepared artifact bytes, sanitized
+  Diagnostic metadata, existing-CID gateway verification, multi-target artifact-pin
+  attestation, reusable-workflow outputs, and durable build-manifest run artifacts.
 - Reusable workflows reference their own JS actions by the literal `@v1` major tag,
   so a caller pinned to `@v1` executes the matching released action surface.
 
@@ -183,9 +218,9 @@ are gated server-side on repository, ref, workflow, and manifest authority.
 ```sh
 pnpm install
 pnpm typecheck
-pnpm build         # bundles each JS action src/ -> dist/index.js (committed)
+pnpm build         # bundles each JS action src/ -> dist/index.cjs (committed)
 pnpm check:dist    # build + fail if committed dist drifted (CI runs this)
 ```
 
-`actions/*/dist/index.js` is **committed** (the node20 Actions runtime has no deps
+`actions/*/dist/index.cjs` is **committed** (the node24 Actions runtime has no deps
 installed). Edit `src/`, run `pnpm build`, commit both.

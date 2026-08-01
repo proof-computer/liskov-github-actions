@@ -13,6 +13,28 @@ name: Acurast app — build, pin, attest
 
 on:
   workflow_call:
+    outputs:
+      cid:
+        description: "Pinned or reused ipfs:// artifact CID."
+        value: ${{ jobs.build-pin-attest.outputs.cid }}
+      digest:
+        description: "sha256 digest of the exact caller-prepared or generated artifact bytes."
+        value: ${{ jobs.build-pin-attest.outputs.digest }}
+      build-manifest-path:
+        description: "Runner path to the generated build manifest."
+        value: ${{ jobs.build-pin-attest.outputs.build-manifest-path }}
+      artifact-version-id:
+        description: "First artifact-version ID (single-target compatibility)."
+        value: ${{ jobs.build-pin-attest.outputs.artifact-version-id }}
+      artifact-version-ids:
+        description: "JSON array of artifact-version IDs."
+        value: ${{ jobs.build-pin-attest.outputs.artifact-version-ids }}
+      attestation-results:
+        description: "JSON array of applicationId/artifactVersionId results."
+        value: ${{ jobs.build-pin-attest.outputs.attestation-results }}
+      target-count:
+        description: "Number of successfully attested targets."
+        value: ${{ jobs.build-pin-attest.outputs.target-count }}
     inputs:
       app-id:
         description: "Liskov Application id (zip/manifest name + artifact-pin target)."
@@ -34,9 +56,45 @@ on:
         type: string
         default: ""
       authored-manifest-path:
-        description: "Path to the application-manifest V4 that authorizes this build."
-        required: true
+        description: "Repository-relative application-manifest V4 path for single-target attestation."
+        required: false
         type: string
+        default: ""
+      prepare-command:
+        description: "Optional caller-owned bash command run after the normal build/smoke step in working-directory."
+        required: false
+        type: string
+        default: ""
+      artifact-path:
+        description: "Optional prepared artifact path relative to working-directory; exact bytes replace generated zip bytes."
+        required: false
+        type: string
+        default: ""
+      artifact-metadata-path:
+        description: "Optional allowlisted Diagnostic metadata JSON path relative to working-directory."
+        required: false
+        type: string
+        default: ""
+      artifact-targets-path:
+        description: "Optional repository-relative exact JSON target array; mutually exclusive with authored-manifest-path."
+        required: false
+        type: string
+        default: ""
+      script-ipfs:
+        description: "Optional existing exact ipfs:// CID; skips upload while retaining local hashing."
+        required: false
+        type: string
+        default: ""
+      ipfs-gateway-url:
+        description: "Optional credential-free HTTPS gateway URL for exact byte verification; supports {cid} and retries 4 times with 10s delay."
+        required: false
+        type: string
+        default: ""
+      upload-manifest-path:
+        description: "Optional build-manifest output path relative to working-directory."
+        required: false
+        type: string
+        default: ""
       node-version:
         required: false
         type: string
@@ -74,6 +132,14 @@ permissions:
 jobs:
   build-pin-attest:
     runs-on: ubuntu-latest
+    outputs:
+      cid: ${{ steps.pin.outputs.cid }}
+      digest: ${{ steps.pin.outputs.digest }}
+      build-manifest-path: ${{ steps.pin.outputs.manifest-path }}
+      artifact-version-id: ${{ steps.attest.outputs.artifact-version-id }}
+      artifact-version-ids: ${{ steps.attest.outputs.artifact-version-ids }}
+      attestation-results: ${{ steps.attest.outputs.results-json }}
+      target-count: ${{ steps.attest.outputs.target-count }}
     steps:
       - uses: actions/checkout@v4
 
@@ -101,6 +167,14 @@ jobs:
           pnpm build
           if [ "${{ inputs.smoke }}" = "true" ]; then pnpm smoke:bundle; fi
 
+      - name: Prepare caller artifact
+        if: ${{ inputs.prepare-command != '' }}
+        shell: bash
+        working-directory: ${{ inputs.working-directory }}
+        env:
+          PREPARE_COMMAND: ${{ inputs.prepare-command }}
+        run: bash -euo pipefail -c "$PREPARE_COMMAND"
+
       - name: IPFS pin (no-spend)
         id: pin
         uses: proof-computer/liskov-github-actions/actions/ipfs-pin@v1
@@ -109,15 +183,30 @@ jobs:
           working-directory: ${{ inputs.working-directory }}
           entrypoint: ${{ inputs.entrypoint }}
           extra-files: ${{ inputs.extra-files }}
+          artifact-path: ${{ inputs.artifact-path }}
+          metadata-path: ${{ inputs.artifact-metadata-path }}
+          script-ipfs: ${{ inputs.script-ipfs }}
+          gateway-url: ${{ inputs.ipfs-gateway-url }}
+          manifest-name: ${{ inputs.upload-manifest-path }}
         env:
           ACURAST_IPFS_URL: ${{ secrets.ACURAST_IPFS_URL }}
           ACURAST_IPFS_API_KEY: ${{ secrets.ACURAST_IPFS_API_KEY }}
 
+      - name: Upload build manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: liskov-${{ inputs.app-id }}-build-manifest-${{ github.run_attempt }}
+          path: ${{ steps.pin.outputs.manifest-path }}
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Attest artifact pin
+        id: attest
         if: ${{ inputs.attest }}
         uses: proof-computer/liskov-github-actions/actions/artifact-pin-attest@v1
         with:
-          application-id: ${{ inputs.app-id }}
+          application-id: ${{ inputs.artifact-targets-path == '' && inputs.app-id || '' }}
           build-manifest-path: ${{ steps.pin.outputs.manifest-path }}
-          authored-manifest-path: ${{ inputs.authored-manifest-path }}
+          authored-manifest-path: ${{ inputs.artifact-targets-path == '' && inputs.authored-manifest-path || '' }}
+          targets-path: ${{ inputs.artifact-targets-path }}
           pin-url: ${{ inputs.pin-url }}

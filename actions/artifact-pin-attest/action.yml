@@ -2,14 +2,20 @@ name: "Liskov artifact-pin attest"
 description: "Mint a GitHub OIDC token and POST a GitHub-attested artifact pin to liskov-rs for one or more Applications."
 inputs:
   application-id:
-    description: "Liskov Application id to attest the pin against."
-    required: true
+    description: "Liskov Application id to attest the pin against (single-target mode)."
+    required: false
+    default: ""
   build-manifest-path:
     description: "Path to the script manifest produced by the ipfs-pin action."
     required: true
   authored-manifest-path:
-    description: "Path to the exact authored application-manifest V4 used for this build."
-    required: true
+    description: "Path to the exact authored application-manifest V4 used for this build (single-target mode)."
+    required: false
+    default: ""
+  targets-path:
+    description: "Optional repository-relative JSON file containing a non-empty array of exact {applicationId, authoredManifestPath} targets; mutually exclusive with single-target inputs."
+    required: false
+    default: ""
   pin-url:
     description: "Artifact-pin URL template ({applicationId} substituted). Defaults to the prod liskov-rs endpoint (or SLIPWAY_ARTIFACT_PIN_URL env)."
     required: false
@@ -24,7 +30,13 @@ outputs:
   digest:
     description: "The attested bundle digest."
   artifact-version-id:
-    description: "The deterministic artifact-version ID returned by Liskov."
+    description: "The first deterministic artifact-version ID returned by Liskov (preserves single-target compatibility)."
+  artifact-version-ids:
+    description: "JSON array of deterministic artifact-version IDs returned by Liskov."
+  results-json:
+    description: "JSON array of {applicationId, artifactVersionId} results."
+  target-count:
+    description: "Number of successfully attested targets."
 runs:
   using: "node24"
   main: "dist/index.cjs"

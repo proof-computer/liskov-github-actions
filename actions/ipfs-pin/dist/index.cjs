@@ -22475,71 +22475,306 @@ var require_adm_zip = __commonJS({
 });
 
 // actions/ipfs-pin/src/index.ts
+var core = __toESM(require_core(), 1);
+
+// actions/ipfs-pin/src/runtime.ts
 var import_node_crypto = require("node:crypto");
 var import_promises = require("node:fs/promises");
 var import_node_path = __toESM(require("node:path"), 1);
-var core = __toESM(require_core(), 1);
 var import_adm_zip = __toESM(require_adm_zip(), 1);
-var DEFAULT_IPFS_ENDPOINT = "https://ipfs-proxy.acurast.prod.gke.papers.tech";
-async function run() {
-  const workingDir = core.getInput("working-directory") || ".";
-  const appName = core.getInput("app-name", { required: true });
-  const entrypoint = core.getInput("entrypoint") || "app.cjs";
-  const extraFiles = splitList(core.getInput("extra-files"));
-  const restartPolicy = core.getInput("restart-policy") || "onFailure";
-  const endpoint = (core.getInput("ipfs-endpoint") || process.env.ACURAST_IPFS_URL || DEFAULT_IPFS_ENDPOINT).replace(/\/+$/u, "");
-  const apiKey = (process.env.ACURAST_IPFS_API_KEY || "").trim();
-  const distDir = import_node_path.default.resolve(workingDir, "dist");
-  const manifestPath = import_node_path.default.resolve(workingDir, core.getInput("manifest-name") || `${appName}-script-manifest.json`);
+
+// actions/shared/src/diagnostics.ts
+var TOP_LEVEL_FIELDS = /* @__PURE__ */ new Set([
+  "artifact",
+  "devtools",
+  "failure",
+  "scenarioArtifact",
+  "sourceBundleSha256"
+]);
+function sanitizeDiagnosticMetadata(value, source = "diagnostic metadata") {
+  if (value === void 0 || value === null) return void 0;
+  const input = exactRecord(value, source, TOP_LEVEL_FIELDS);
+  const output = {};
+  if (input.devtools !== void 0) {
+    const devtools = exactRecord(
+      input.devtools,
+      `${source}.devtools`,
+      /* @__PURE__ */ new Set(["enabled", "injected", "uploadMode"])
+    );
+    const sanitized = {};
+    optionalBoolean(devtools, sanitized, "enabled", `${source}.devtools`);
+    optionalBoolean(devtools, sanitized, "injected", `${source}.devtools`);
+    if (devtools.uploadMode !== void 0) {
+      if (devtools.uploadMode !== "direct") {
+        throw new Error(`${source}.devtools.uploadMode must be direct`);
+      }
+      sanitized.uploadMode = "direct";
+    }
+    if (Object.keys(sanitized).length > 0) output.devtools = sanitized;
+  }
+  if (input.artifact !== void 0) {
+    const artifact = exactRecord(
+      input.artifact,
+      `${source}.artifact`,
+      /* @__PURE__ */ new Set(["format", "entrypoint", "restartPolicy"])
+    );
+    const sanitized = {};
+    if (artifact.format !== void 0) {
+      if (artifact.format !== "raw-cjs" && artifact.format !== "acurast-zip") {
+        throw new Error(`${source}.artifact.format must be raw-cjs or acurast-zip`);
+      }
+      sanitized.format = artifact.format;
+    }
+    if (artifact.entrypoint !== void 0) {
+      sanitized.entrypoint = safeRelativeArtifactPath(
+        artifact.entrypoint,
+        `${source}.artifact.entrypoint`
+      );
+    }
+    if (artifact.restartPolicy !== void 0) {
+      if (artifact.restartPolicy !== "no" && artifact.restartPolicy !== "onFailure") {
+        throw new Error(`${source}.artifact.restartPolicy must be no or onFailure`);
+      }
+      sanitized.restartPolicy = artifact.restartPolicy;
+    }
+    if (Object.keys(sanitized).length > 0) output.artifact = sanitized;
+  }
+  if (input.sourceBundleSha256 !== void 0) {
+    if (typeof input.sourceBundleSha256 !== "string" || !/^[0-9a-f]{64}$/iu.test(input.sourceBundleSha256)) {
+      throw new Error(`${source}.sourceBundleSha256 must be a 64-character SHA-256`);
+    }
+    output.sourceBundleSha256 = input.sourceBundleSha256.toLowerCase();
+  }
+  if (input.failure !== void 0) {
+    const failure = exactRecord(
+      input.failure,
+      `${source}.failure`,
+      /* @__PURE__ */ new Set(["mode"])
+    );
+    if (failure.mode !== void 0) {
+      if (failure.mode !== "exit" && failure.mode !== "acurast-really-exit") {
+        throw new Error(`${source}.failure.mode must be exit or acurast-really-exit`);
+      }
+      output.failure = { mode: failure.mode };
+    }
+  }
+  if (input.scenarioArtifact !== void 0) {
+    const scenario = exactRecord(
+      input.scenarioArtifact,
+      `${source}.scenarioArtifact`,
+      /* @__PURE__ */ new Set(["profile", "fixture"])
+    );
+    const sanitized = {};
+    if (scenario.profile !== void 0) {
+      if (typeof scenario.profile !== "string" || !/^[A-Za-z0-9._-]{1,128}$/u.test(scenario.profile)) {
+        throw new Error(
+          `${source}.scenarioArtifact.profile must be a bounded identifier`
+        );
+      }
+      sanitized.profile = scenario.profile;
+    }
+    if (scenario.fixture !== void 0) {
+      if (scenario.fixture !== "runnable" && scenario.fixture !== "missing-entrypoint") {
+        throw new Error(
+          `${source}.scenarioArtifact.fixture must be runnable or missing-entrypoint`
+        );
+      }
+      sanitized.fixture = scenario.fixture;
+    }
+    if (Object.keys(sanitized).length > 0) output.scenarioArtifact = sanitized;
+  }
+  return Object.keys(output).length > 0 ? output : void 0;
+}
+function exactRecord(value, source, allowedFields) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${source} must be an object`);
+  }
+  const record = value;
+  for (const key of Object.keys(record)) {
+    if (!allowedFields.has(key)) throw new Error(`${source}.${key} is not allowed`);
+  }
+  return record;
+}
+function safeRelativeArtifactPath(value, source) {
+  if (typeof value !== "string" || value.length === 0 || value.length > 256 || value.includes("\\") || value.startsWith("/") || value.split("/").some((part) => part === "" || part === "." || part === "..") || !/^[A-Za-z0-9._/-]+$/u.test(value)) {
+    throw new Error(`${source} must be a safe relative artifact path`);
+  }
+  return value;
+}
+function optionalBoolean(input, output, field, source) {
+  const value = input[field];
+  if (value === void 0) return;
+  if (typeof value !== "boolean") throw new Error(`${source}.${field} must be boolean`);
+  output[field] = value;
+}
+
+// actions/ipfs-pin/src/runtime.ts
+var DEFAULT_DEPENDENCIES = {
+  fetchImpl: fetch,
+  now: () => /* @__PURE__ */ new Date(),
+  environment: process.env,
+  sleep: (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
+};
+var GATEWAY_ATTEMPTS = 4;
+var GATEWAY_RETRY_DELAY_MS = 1e4;
+async function runIpfsPin(inputs, dependencies = DEFAULT_DEPENDENCIES) {
+  const root = import_node_path.default.resolve(inputs.workingDirectory || ".");
+  const artifactBytes = inputs.artifactPath ? await (0, import_promises.readFile)(resolveWithin(root, inputs.artifactPath, "artifact-path")) : await generatedZip(root, inputs);
+  const artifactSha256 = sha256(artifactBytes);
+  const diagnostics = inputs.metadataPath ? sanitizeDiagnosticMetadata(
+    JSON.parse(
+      await (0, import_promises.readFile)(resolveWithin(root, inputs.metadataPath, "metadata-path"), "utf8")
+    ),
+    `metadata ${inputs.metadataPath}`
+  ) : void 0;
+  const suppliedCid = inputs.scriptIpfs?.trim();
+  const scriptIpfs = suppliedCid ? validateScriptIpfs(suppliedCid) : await uploadArtifact(artifactBytes, inputs, dependencies.fetchImpl);
+  const uploadPerformed = !suppliedCid;
+  if (inputs.gatewayUrl?.trim()) {
+    await verifyGatewayBytes(
+      artifactBytes,
+      scriptIpfs,
+      inputs.gatewayUrl.trim(),
+      dependencies.fetchImpl,
+      dependencies.sleep
+    );
+  }
+  const metadataArtifact = diagnostics?.artifact;
+  const metadataArtifactRecord = metadataArtifact && typeof metadataArtifact === "object" && !Array.isArray(metadataArtifact) ? metadataArtifact : void 0;
+  const artifact = {
+    format: metadataArtifactRecord?.format ?? "acurast-zip",
+    entrypoint: metadataArtifactRecord?.entrypoint ?? inputs.entrypoint
+  };
+  const manifest = {
+    version: 1,
+    kind: `${inputs.appName}-script`,
+    scriptIpfs,
+    scriptHash: `sha256:${artifactSha256}`,
+    bundleSha256: artifactSha256,
+    generatedAt: dependencies.now().toISOString(),
+    artifact,
+    source: {
+      repository: dependencies.environment.GITHUB_REPOSITORY,
+      workflow: dependencies.environment.GITHUB_WORKFLOW,
+      runId: dependencies.environment.GITHUB_RUN_ID,
+      runAttempt: dependencies.environment.GITHUB_RUN_ATTEMPT
+    }
+  };
+  if (diagnostics) manifest.diagnostics = diagnostics;
+  const manifestName = inputs.manifestName?.trim() || `${inputs.appName}-script-manifest.json`;
+  const manifestPath = resolveWithin(root, manifestName, "manifest-name");
+  await (0, import_promises.mkdir)(import_node_path.default.dirname(manifestPath), { recursive: true });
+  await (0, import_promises.writeFile)(manifestPath, `${JSON.stringify(manifest, null, 2)}
+`);
+  return {
+    scriptIpfs,
+    digest: `sha256:${artifactSha256}`,
+    manifestPath,
+    uploadPerformed,
+    manifest
+  };
+}
+async function generatedZip(root, inputs) {
+  const entrypoint = safeRelativeArtifactPath(inputs.entrypoint, "entrypoint");
+  if (inputs.restartPolicy !== "no" && inputs.restartPolicy !== "onFailure") {
+    throw new Error("restart-policy must be no or onFailure");
+  }
+  const distDir = import_node_path.default.join(root, "dist");
   const zip = new import_adm_zip.default();
   const fixedTime = /* @__PURE__ */ new Date("1980-01-01T00:00:00.000Z");
-  zip.addFile("manifest.json", Buffer.from(JSON.stringify({ name: appName, version: 1, entrypoint, restartPolicy }), "utf8"));
-  zip.addFile(entrypoint, await (0, import_promises.readFile)(import_node_path.default.join(distDir, entrypoint)));
-  for (const file of extraFiles) {
+  zip.addFile(
+    "manifest.json",
+    Buffer.from(JSON.stringify({
+      name: inputs.appName,
+      version: 1,
+      entrypoint,
+      restartPolicy: inputs.restartPolicy
+    }), "utf8")
+  );
+  zip.addFile(entrypoint, await (0, import_promises.readFile)(resolveWithin(distDir, entrypoint, "entrypoint")));
+  for (const rawFile of inputs.extraFiles) {
+    const file = safeRelativeArtifactPath(rawFile, "extra-files");
     if (file === entrypoint) continue;
-    zip.addFile(file, await (0, import_promises.readFile)(import_node_path.default.join(distDir, file)));
+    zip.addFile(file, await (0, import_promises.readFile)(resolveWithin(distDir, file, "extra-files")));
   }
   for (const entry of zip.getEntries()) entry.header.time = fixedTime;
-  const zipBuffer = zip.toBuffer();
-  const artifactSha256 = (0, import_node_crypto.createHash)("sha256").update(zipBuffer).digest("hex");
+  return zip.toBuffer();
+}
+async function uploadArtifact(artifactBytes, inputs, fetchImpl) {
+  const endpoint = inputs.endpoint.replace(/\/+$/u, "");
   const form = new FormData();
-  form.append("file", new Blob([new Uint8Array(zipBuffer)], { type: "application/zip" }), "script.js");
+  form.append(
+    "file",
+    new Blob([new Uint8Array(artifactBytes)], { type: "application/zip" }),
+    "script.js"
+  );
   form.append("pinataOptions", JSON.stringify({ cidVersion: 0 }));
   form.append("pinataMetadata", JSON.stringify({ name: "script.js" }));
-  const response = await fetch(`${endpoint}/pinning/pinFileToIPFS`, {
+  const response = await fetchImpl(`${endpoint}/pinning/pinFileToIPFS`, {
     method: "POST",
-    headers: apiKey ? { authorization: `Bearer ${apiKey}` } : void 0,
+    headers: inputs.apiKey ? { authorization: `Bearer ${inputs.apiKey}` } : void 0,
     body: form
   });
   const text = await response.text();
   if (!response.ok) throw new Error(`IPFS upload failed (${response.status}): ${redact(text)}`);
   const cid = parseCid(text);
   if (!cid) throw new Error(`IPFS upload response missing IpfsHash: ${redact(text)}`);
-  const scriptIpfs = `ipfs://${cid}`;
-  const manifest = {
-    version: 1,
-    kind: `${appName}-script`,
-    scriptIpfs,
-    scriptHash: `sha256:${artifactSha256}`,
-    bundleSha256: artifactSha256,
-    generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
-    artifact: { format: "acurast-zip", entrypoint },
-    source: {
-      repository: process.env.GITHUB_REPOSITORY,
-      workflow: process.env.GITHUB_WORKFLOW,
-      runId: process.env.GITHUB_RUN_ID,
-      runAttempt: process.env.GITHUB_RUN_ATTEMPT
-    }
-  };
-  await (0, import_promises.writeFile)(manifestPath, `${JSON.stringify(manifest, null, 2)}
-`);
-  core.setOutput("cid", scriptIpfs);
-  core.setOutput("digest", `sha256:${artifactSha256}`);
-  core.setOutput("manifest-path", manifestPath);
-  core.info(`Pinned ${appName}: ${scriptIpfs} (sha256:${artifactSha256})`);
+  return `ipfs://${cid}`;
 }
-function splitList(value) {
-  return value.split(/[\n,]+/u).map((s) => s.trim()).filter(Boolean);
+async function verifyGatewayBytes(expected, scriptIpfs, gatewayTemplate, fetchImpl, sleep) {
+  const cid = validateScriptIpfs(scriptIpfs).slice("ipfs://".length);
+  const rendered = gatewayTemplate.replaceAll("{cid}", encodeURIComponent(cid));
+  let url;
+  try {
+    url = new URL(rendered);
+  } catch {
+    throw new Error("gateway-url must be an absolute HTTPS URL");
+  }
+  if (url.protocol !== "https:" || url.username.length > 0 || url.password.length > 0 || url.hash.length > 0) {
+    throw new Error("gateway-url must be a credential-free HTTPS URL without a fragment");
+  }
+  let finalError;
+  for (let attempt = 1; attempt <= GATEWAY_ATTEMPTS; attempt += 1) {
+    try {
+      const response = await fetchImpl(url);
+      if (!response.ok) {
+        throw new Error(`IPFS gateway verification failed with HTTP ${response.status}`);
+      }
+      const observed = Buffer.from(await response.arrayBuffer());
+      if (!expected.equals(observed)) {
+        throw new Error(
+          `IPFS gateway bytes mismatch: expected sha256:${sha256(expected)}, got sha256:${sha256(observed)}`
+        );
+      }
+      return;
+    } catch (error) {
+      finalError = error instanceof Error ? error : new Error(String(error));
+      if (attempt < GATEWAY_ATTEMPTS) {
+        await (sleep ?? DEFAULT_DEPENDENCIES.sleep)(GATEWAY_RETRY_DELAY_MS);
+      }
+    }
+  }
+  throw new Error(
+    `IPFS gateway verification failed after ${GATEWAY_ATTEMPTS} attempts: ${finalError?.message}`
+  );
+}
+function validateScriptIpfs(value) {
+  if (!/^ipfs:\/\/[A-Za-z0-9]+$/u.test(value)) {
+    throw new Error("script-ipfs must be an exact ipfs:// CID URI");
+  }
+  return value;
+}
+function sha256(value) {
+  return (0, import_node_crypto.createHash)("sha256").update(value).digest("hex");
+}
+function resolveWithin(root, candidate, field) {
+  if (!candidate.trim()) throw new Error(`${field} must not be empty`);
+  const resolved = import_node_path.default.resolve(root, candidate);
+  const relative = import_node_path.default.relative(root, resolved);
+  if (relative === ".." || relative.startsWith(`..${import_node_path.default.sep}`) || import_node_path.default.isAbsolute(relative)) {
+    throw new Error(`${field} must stay within working-directory`);
+  }
+  return resolved;
 }
 function parseCid(text) {
   try {
@@ -22553,5 +22788,45 @@ function parseCid(text) {
 }
 function redact(value) {
   return value.replace(/[A-Za-z0-9_-]{24,}/gu, "[redacted]").slice(0, 400);
+}
+
+// actions/ipfs-pin/src/index.ts
+var DEFAULT_IPFS_ENDPOINT = "https://ipfs-proxy.acurast.prod.gke.papers.tech";
+async function run() {
+  const workingDir = core.getInput("working-directory") || ".";
+  const appName = core.getInput("app-name", { required: true });
+  const entrypoint = core.getInput("entrypoint") || "app.cjs";
+  const extraFiles = splitList(core.getInput("extra-files"));
+  const restartPolicy = core.getInput("restart-policy") || "onFailure";
+  const endpoint = (core.getInput("ipfs-endpoint") || process.env.ACURAST_IPFS_URL || DEFAULT_IPFS_ENDPOINT).replace(/\/+$/u, "");
+  const apiKey = (process.env.ACURAST_IPFS_API_KEY || "").trim();
+  const result = await runIpfsPin({
+    workingDirectory: workingDir,
+    appName,
+    entrypoint,
+    extraFiles,
+    restartPolicy,
+    endpoint,
+    apiKey,
+    artifactPath: optionalInput("artifact-path"),
+    metadataPath: optionalInput("metadata-path"),
+    scriptIpfs: optionalInput("script-ipfs"),
+    gatewayUrl: optionalInput("gateway-url"),
+    manifestName: optionalInput("manifest-name")
+  });
+  core.setOutput("cid", result.scriptIpfs);
+  core.setOutput("digest", result.digest);
+  core.setOutput("manifest-path", result.manifestPath);
+  core.setOutput("upload-performed", String(result.uploadPerformed));
+  core.info(
+    `${result.uploadPerformed ? "Pinned" : "Reused"} ${appName}: ${result.scriptIpfs} (${result.digest})`
+  );
+}
+function splitList(value) {
+  return value.split(/[\n,]+/u).map((s) => s.trim()).filter(Boolean);
+}
+function optionalInput(name) {
+  const value = core.getInput(name).trim();
+  return value || void 0;
 }
 run().catch((error) => core.setFailed(error instanceof Error ? error.message : String(error)));
