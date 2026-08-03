@@ -50,6 +50,11 @@ on:
         description: "Exact workflow identity that attested the base rootfs."
         required: true
         type: string
+      attest-runtime-image:
+        description: "Publish GitHub build provenance for the derived runtime image. Disable for repositories where GitHub artifact attestations are unavailable."
+        required: false
+        type: boolean
+        default: true
       bootstrap-mode:
         required: false
         type: string
@@ -230,6 +235,7 @@ jobs:
             "${RUNNER_TEMP}/cargo-runtime-image-two.tar.xz"
 
       - name: Attest deterministic Cargo runtime image
+        if: ${{ inputs.attest-runtime-image }}
         uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a
         with:
           subject-path: ${{ runner.temp }}/cargo-runtime-image-one.tar.xz

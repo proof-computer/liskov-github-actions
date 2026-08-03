@@ -5,9 +5,15 @@ import { describe, it } from "node:test";
 import { parse } from "yaml";
 
 describe("Cargo runtime-image reusable workflow", () => {
-  it("pins inputs, proves two builds, attests, then finalizes", async () => {
+  it("pins inputs, proves two builds, optionally attests, then finalizes", async () => {
     const path = new URL("../../../.github/workflows/cargo-runtime-image.yml", import.meta.url);
     const workflow = parse(await readFile(path, "utf8")) as Record<string, unknown>;
+    const trigger = object(workflow.on, "on");
+    const workflowCall = object(trigger.workflow_call, "workflow_call");
+    const inputs = object(workflowCall.inputs, "inputs");
+    const attestInput = object(inputs["attest-runtime-image"], "attest-runtime-image");
+    assert.equal(attestInput.type, "boolean");
+    assert.equal(attestInput.default, true);
     const jobs = object(workflow.jobs, "jobs");
     const job = object(jobs["build-upload"], "build-upload");
     assert.equal(job["runs-on"], "ubuntu-24.04-arm");
@@ -32,6 +38,7 @@ describe("Cargo runtime-image reusable workflow", () => {
       steps[attest]?.uses,
       "actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a"
     );
+    assert.equal(steps[attest]?.if, "${{ inputs.attest-runtime-image }}");
     assert.equal(
       steps[upload]?.uses,
       "proof-computer/liskov-github-actions/actions/runtime-image-upload@v1"

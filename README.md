@@ -150,11 +150,19 @@ each build at the declared absolute path, normalizes the rootfs archive, rejects
 any embedded `liskov-runtime-contact`, and requires both complete images to
 have the same digest and bytes.
 
-Only after that proof does the workflow attest the generated image, import the
-exact authored manifest, and invoke the existing scoped upload/finalization
-action. Callers must pin the base image's SHA-256, source commit, repository,
-and signer workflow. Release callers should use the maintained promoted rootfs;
-a release-candidate rootfs remains suitable only for an explicitly controlled
+Only after that proof does the workflow optionally attest the generated image,
+import the exact authored manifest, and invoke the existing scoped
+upload/finalization action. Generated-image attestation defaults on. Set
+`attest-runtime-image: false` when GitHub artifact attestations are unavailable,
+including private repositories whose organization plan does not provide them.
+This skips only publication of GitHub build provenance for the derived image:
+Liskov still verifies the caller's GitHub OIDC identity and binds the exact
+Application, manifest digest pair, source commit, workflow, and image digest.
+The base image remains digest- and attestation-verified in both modes.
+
+Callers must pin the base image's SHA-256, source commit, repository, and signer
+workflow. Release callers should use the maintained promoted rootfs; a
+release-candidate rootfs remains suitable only for an explicitly controlled
 canary.
 
 ```yaml
@@ -172,6 +180,7 @@ jobs:
       base-attestation-repository: proof-computer/liskov-runtime-images
       base-attestation-source-digest: <exact source commit>
       base-attestation-signer-workflow: proof-computer/liskov-runtime-images/.github/workflows/ci.yml
+      attest-runtime-image: false # optional; defaults to true
 ```
 
 ## À-la-carte actions
@@ -201,6 +210,9 @@ Compose your own job from these (`uses: proof-computer/liskov-github-actions/act
 - `v1.2.0` adds backward-compatible caller-prepared artifact bytes, sanitized
   Diagnostic metadata, existing-CID gateway verification, multi-target artifact-pin
   attestation, reusable-workflow outputs, and durable build-manifest run artifacts.
+- `v1.2.3` allows Cargo callers to skip publishing derived-image GitHub build
+  provenance while retaining deterministic byte proof, base-image attestation,
+  and Liskov's exact OIDC/manifest/image binding.
 - Reusable workflows reference their own JS actions by the literal `@v1` major tag,
   so a caller pinned to `@v1` executes the matching released action surface.
 
