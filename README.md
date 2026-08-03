@@ -159,6 +159,9 @@ This skips only publication of GitHub build provenance for the derived image:
 Liskov still verifies the caller's GitHub OIDC identity and binds the exact
 Application, manifest digest pair, source commit, workflow, and image digest.
 The base image remains digest- and attestation-verified in both modes.
+GitHub requires the caller to grant every permission declared by a reusable
+workflow, so callers must retain `attestations: write` even when this input is
+false; the skipped step creates no attestation.
 
 Callers must pin the base image's SHA-256, source commit, repository, and signer
 workflow. Release callers should use the maintained promoted rootfs; a
@@ -166,6 +169,11 @@ release-candidate rootfs remains suitable only for an explicitly controlled
 canary.
 
 ```yaml
+permissions:
+  attestations: write
+  contents: read
+  id-token: write
+
 jobs:
   image:
     uses: proof-computer/liskov-github-actions/.github/workflows/cargo-runtime-image.yml@v1
