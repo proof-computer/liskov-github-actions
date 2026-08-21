@@ -19,11 +19,39 @@ inputs:
     description: "OIDC token audience."
     required: false
     default: "slipway-artifact-pin"
+  repository:
+    description: "Exact owner/repository that must match GITHUB_REPOSITORY for retained V5 source publication."
+    required: false
+    default: ""
+  ref:
+    description: "Exact git ref that must match GITHUB_REF for retained V5 source publication."
+    required: false
+    default: ""
+  workflow-ref:
+    description: "Exact GitHub workflow ref that must match GITHUB_WORKFLOW_REF."
+    required: false
+    default: ""
+  expected-manifest-path:
+    description: "Exact manifest path that must match the imported file for retained V5 source publication."
+    required: false
+    default: ""
+  artifact-digest:
+    description: "Exact sha256 artifact digest required when the caller supplies artifact evidence."
+    required: false
+    default: ""
 outputs:
   authored-digest:
     description: "Canonical digest of the exact authored manifest."
   release-intent-digest:
     description: "Canonical digest of normalized release requirements and builder authority."
+  source-repository:
+    description: "Exact bound repository for retained V5 source publication."
+  source-ref:
+    description: "Exact bound git ref for retained V5 source publication."
+  source-workflow-ref:
+    description: "Exact bound workflow ref for retained V5 source publication."
+  source-manifest-path:
+    description: "Exact bound manifest path for retained V5 source publication."
 runs:
   using: "node24"
   main: "dist/index.cjs"

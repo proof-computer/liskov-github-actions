@@ -10,6 +10,7 @@ import { readFile } from "node:fs/promises";
 import * as core from "@actions/core";
 
 import { resolvePolicyImportUrl } from "./url.js";
+import { bindPolicyImportManifest } from "./bind.js";
 
 async function run(): Promise<void> {
   const applicationId = core.getInput("application-id", { required: true }).trim();
@@ -24,13 +25,19 @@ async function run(): Promise<void> {
   } catch (error) {
     throw new Error(`Could not read manifest JSON from ${manifestPath}: ${error instanceof Error ? error.message : String(error)}`);
   }
-  if (typeof document !== "object" || document === null || Array.isArray(document)) {
-    throw new Error(`${manifestPath} must contain a JSON object application manifest`);
-  }
-  const documentId = (document as Record<string, unknown>).applicationId;
-  if (typeof documentId === "string" && documentId !== applicationId) {
-    throw new Error(`${manifestPath} declares applicationId ${documentId}, expected ${applicationId}`);
-  }
+  const bound = bindPolicyImportManifest({
+    manifest: document,
+    applicationId,
+    manifestPath,
+    env: process.env,
+    expected: {
+      repository: optionalInput("repository"),
+      ref: optionalInput("ref"),
+      workflowRef: optionalInput("workflow-ref"),
+      manifestPath: optionalInput("expected-manifest-path") || manifestPath,
+      artifactDigest: optionalInput("artifact-digest")
+    }
+  });
 
   const token = await core.getIDToken(audience);
   core.setSecret(token);
@@ -43,7 +50,10 @@ async function run(): Promise<void> {
   const response = await fetch(url, {
     method: "POST",
     headers: { authorization: `Bearer ${token}`, accept: "application/json", "content-type": "application/json" },
-    body: JSON.stringify({ document, path: manifestPath })
+    body: JSON.stringify({
+      document: bound.document,
+      path: manifestPath
+    })
   });
   const responseText = await response.text();
   if (!response.ok) throw new Error(`Policy import failed for ${applicationId}: ${response.status} ${responseText}`);
@@ -71,6 +81,17 @@ async function run(): Promise<void> {
   core.info(`Imported ${manifestPath} for ${applicationId} as an authored manifest draft`);
   core.setOutput("authored-digest", authoredDigest);
   core.setOutput("release-intent-digest", releaseIntentDigest);
+  if (bound.sourceEvidence) {
+    core.setOutput("source-repository", bound.sourceEvidence.repository);
+    core.setOutput("source-ref", bound.sourceEvidence.ref);
+    core.setOutput("source-workflow-ref", bound.sourceEvidence.workflowRef);
+    core.setOutput("source-manifest-path", bound.sourceEvidence.manifestPath);
+  }
+}
+
+function optionalInput(name: string): string | undefined {
+  const value = core.getInput(name).trim();
+  return value || undefined;
 }
 
 run().catch((error) => core.setFailed(error instanceof Error ? error.message : String(error)));

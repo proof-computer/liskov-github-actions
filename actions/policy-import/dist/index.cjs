@@ -19845,6 +19845,133 @@ function runtimeImportUrl(baseUrl, encodedApplicationId) {
   return url.toString();
 }
 
+// actions/shared/src/source-publication.ts
+var import_node_crypto = require("node:crypto");
+var SOURCE_PUBLICATION_SCHEMA = "proof.liskov.source-publication-evidence.v1";
+var APPLICATION_MANIFEST_SCHEMA = "proof.liskov.application-manifest";
+var DEFERRED_ROOTS = ["ingress", "cohort", "hooks", "integrations"];
+function observedGithubSource(env, manifestPath) {
+  const repository = requiredEnv(env, "GITHUB_REPOSITORY");
+  const ref = requiredEnv(env, "GITHUB_REF");
+  const workflowRef = requiredEnv(env, "GITHUB_WORKFLOW_REF");
+  return {
+    repository,
+    ref,
+    workflowRef,
+    manifestPath,
+    artifactDigest: optional(env.LISKOV_ARTIFACT_DIGEST)
+  };
+}
+function bindRetainedSourcePublication(input) {
+  const manifest = asObject(input.manifest);
+  if (!manifest) throw new Error("authored manifest must be an object");
+  if (manifest.schema !== APPLICATION_MANIFEST_SCHEMA) {
+    throw new Error(`authored manifest schema must be ${APPLICATION_MANIFEST_SCHEMA}`);
+  }
+  if (manifest.schemaVersion !== 5) {
+    throw new Error("retained source publication requires schemaVersion 5");
+  }
+  if (manifest.applicationId !== input.applicationId) {
+    throw new Error(`authored manifest applicationId must be ${input.applicationId}`);
+  }
+  const release = asObject(manifest.release);
+  if (!release || release.mode !== "source") {
+    throw new Error("retained source publication requires release.mode source");
+  }
+  for (const key of DEFERRED_ROOTS) {
+    if (key in manifest) {
+      throw new Error(`${key} is deferred from thin V5 and is not accepted as live source evidence`);
+    }
+  }
+  bindExact("repository", input.observed.repository, input.expected.repository);
+  bindExact("ref", input.observed.ref, input.expected.ref);
+  bindExact("workflow", input.observed.workflowRef, input.expected.workflowRef);
+  bindExact("manifest", input.observed.manifestPath, input.expected.manifestPath);
+  if (input.expected.artifactDigest) {
+    if (!input.observed.artifactDigest) {
+      throw new Error("stale or mismatched artifact evidence: observed artifact digest is missing");
+    }
+    bindExact("artifact", input.observed.artifactDigest, input.expected.artifactDigest);
+  }
+  const evidence = {
+    schema: SOURCE_PUBLICATION_SCHEMA,
+    applicationId: input.applicationId,
+    authoredDigest: canonicalDigest(manifest),
+    repository: input.observed.repository,
+    ref: input.observed.ref,
+    workflowRef: input.observed.workflowRef,
+    manifestPath: input.observed.manifestPath
+  };
+  if (input.observed.artifactDigest) evidence.artifactDigest = input.observed.artifactDigest;
+  return evidence;
+}
+function bindExact(name, observed, expected) {
+  if (!expected.trim() || !observed.trim()) {
+    throw new Error(`${name} evidence must be a non-empty exact value`);
+  }
+  if (observed !== expected) {
+    throw new Error(`stale or mismatched ${name} evidence: observed ${observed}, expected ${expected}`);
+  }
+}
+function requiredEnv(env, key) {
+  const value = optional(env[key]);
+  if (!value) throw new Error(`${key} is required to bind source publication evidence`);
+  return value;
+}
+function optional(value) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : void 0;
+}
+function asObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value) ? value : void 0;
+}
+function canonicalDigest(value) {
+  return (0, import_node_crypto.createHash)("sha256").update(canonicalJson(value)).digest("hex");
+}
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    const record = value;
+    return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(",")}}`;
+  }
+  const serialized = JSON.stringify(value);
+  if (serialized === void 0) throw new Error("value is not canonical JSON");
+  return serialized;
+}
+
+// actions/policy-import/src/bind.ts
+function bindPolicyImportManifest(input) {
+  const document = input.manifest;
+  if (typeof document !== "object" || document === null || Array.isArray(document)) {
+    throw new Error("authored manifest must contain a JSON object");
+  }
+  const record = document;
+  const documentId = record.applicationId;
+  if (typeof documentId === "string" && documentId !== input.applicationId) {
+    throw new Error(`authored manifest applicationId must be ${input.applicationId}`);
+  }
+  if (record.schemaVersion === 4) {
+    return { document: record };
+  }
+  const observed = observedGithubSource(input.env, input.manifestPath);
+  const expected = {
+    repository: input.expected?.repository || observed.repository,
+    ref: input.expected?.ref || observed.ref,
+    workflowRef: input.expected?.workflowRef || observed.workflowRef,
+    manifestPath: input.expected?.manifestPath || observed.manifestPath,
+    artifactDigest: input.expected?.artifactDigest || observed.artifactDigest
+  };
+  return {
+    document: record,
+    sourceEvidence: bindRetainedSourcePublication({
+      manifest: record,
+      applicationId: input.applicationId,
+      observed,
+      expected
+    })
+  };
+}
+
 // actions/policy-import/src/index.ts
 async function run() {
   const applicationId = core.getInput("application-id", { required: true }).trim();
@@ -19858,13 +19985,19 @@ async function run() {
   } catch (error) {
     throw new Error(`Could not read manifest JSON from ${manifestPath}: ${error instanceof Error ? error.message : String(error)}`);
   }
-  if (typeof document !== "object" || document === null || Array.isArray(document)) {
-    throw new Error(`${manifestPath} must contain a JSON object application manifest`);
-  }
-  const documentId = document.applicationId;
-  if (typeof documentId === "string" && documentId !== applicationId) {
-    throw new Error(`${manifestPath} declares applicationId ${documentId}, expected ${applicationId}`);
-  }
+  const bound = bindPolicyImportManifest({
+    manifest: document,
+    applicationId,
+    manifestPath,
+    env: process.env,
+    expected: {
+      repository: optionalInput("repository"),
+      ref: optionalInput("ref"),
+      workflowRef: optionalInput("workflow-ref"),
+      manifestPath: optionalInput("expected-manifest-path") || manifestPath,
+      artifactDigest: optionalInput("artifact-digest")
+    }
+  });
   const token = await core.getIDToken(audience);
   core.setSecret(token);
   const url = resolvePolicyImportUrl({
@@ -19876,7 +20009,10 @@ async function run() {
   const response = await fetch(url, {
     method: "POST",
     headers: { authorization: `Bearer ${token}`, accept: "application/json", "content-type": "application/json" },
-    body: JSON.stringify({ document, path: manifestPath })
+    body: JSON.stringify({
+      document: bound.document,
+      path: manifestPath
+    })
   });
   const responseText = await response.text();
   if (!response.ok) throw new Error(`Policy import failed for ${applicationId}: ${response.status} ${responseText}`);
@@ -19899,5 +20035,15 @@ async function run() {
   core.info(`Imported ${manifestPath} for ${applicationId} as an authored manifest draft`);
   core.setOutput("authored-digest", authoredDigest);
   core.setOutput("release-intent-digest", releaseIntentDigest);
+  if (bound.sourceEvidence) {
+    core.setOutput("source-repository", bound.sourceEvidence.repository);
+    core.setOutput("source-ref", bound.sourceEvidence.ref);
+    core.setOutput("source-workflow-ref", bound.sourceEvidence.workflowRef);
+    core.setOutput("source-manifest-path", bound.sourceEvidence.manifestPath);
+  }
+}
+function optionalInput(name) {
+  const value = core.getInput(name).trim();
+  return value || void 0;
 }
 run().catch((error) => core.setFailed(error instanceof Error ? error.message : String(error)));
