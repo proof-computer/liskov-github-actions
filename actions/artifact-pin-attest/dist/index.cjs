@@ -19948,11 +19948,30 @@ function optionalBoolean(input, output, field, source) {
 // actions/artifact-pin-attest/src/manifest.ts
 var import_node_crypto = require("node:crypto");
 function artifactPinBindings(manifest, applicationId) {
-  if (manifest.schema !== "proof.liskov.application-manifest" || manifest.schemaVersion !== 4) {
-    throw new Error("authored manifest must declare proof.liskov.application-manifest v4");
+  if (manifest.schema !== "proof.liskov.application-manifest") {
+    throw new Error("authored manifest must declare proof.liskov.application-manifest");
   }
   if (manifest.applicationId !== applicationId) {
     throw new Error(`authored manifest applicationId must be ${applicationId}`);
+  }
+  if (manifest.schemaVersion === 5) {
+    const release2 = recordField(manifest, "release");
+    if (release2.mode !== "source") {
+      throw new Error("V5 artifact attestation requires release.mode source");
+    }
+    const runtime = recordField(manifest, "runtime");
+    if (runtime.kind !== "javascript") {
+      throw new Error("the retained V5 IPFS artifact workflow currently requires runtime.kind javascript");
+    }
+    for (const deferred of ["ingress", "cohort", "hooks", "integrations"]) {
+      if (deferred in manifest) {
+        throw new Error(`${deferred} is deferred from thin V5 source artifacts`);
+      }
+    }
+    return { kind: "v5-source" };
+  }
+  if (manifest.schemaVersion !== 4) {
+    throw new Error("authored manifest schemaVersion must be 4 or 5");
   }
   const release = recordField(manifest, "release");
   if (release.mode !== "build") {
@@ -19975,6 +19994,7 @@ function artifactPinBindings(manifest, applicationId) {
   }
   builder.allowedRefs = [...builder.allowedRefs].sort();
   return {
+    kind: "v4",
     authoredDigest: canonicalDigest(manifest),
     releaseIntentDigest: canonicalDigest({
       schema: "proof.liskov.release-intent",
@@ -20077,7 +20097,13 @@ async function runArtifactPinAttest(inputs, dependencies) {
   const oidcProvenance = artifactProvenanceFromOidcToken(token);
   const results = [];
   for (const { target, bindings } of preparedTargets) {
-    const body = {
+    const body = bindings.kind === "v5-source" ? {
+      domain: "proof.liskov.github-source-artifact.v1",
+      applicationId: target.applicationId,
+      manifestPath: target.authoredManifestPath,
+      scriptCid,
+      bundleDigest: canonicalSha256(bundleDigest)
+    } : {
       domain: "proof.slipway.github-artifact-pin.v1",
       applicationId: target.applicationId,
       scriptCid,
@@ -20098,7 +20124,7 @@ async function runArtifactPinAttest(inputs, dependencies) {
         event_name: dependencies.environment.GITHUB_EVENT_NAME
       }
     };
-    if (diagnostics) body.diagnostics = diagnostics;
+    if (bindings.kind === "v4" && diagnostics) body.diagnostics = diagnostics;
     const url = inputs.urlTemplate.replaceAll(
       "{applicationId}",
       encodeURIComponent(target.applicationId)
@@ -20135,6 +20161,13 @@ async function runArtifactPinAttest(inputs, dependencies) {
     artifactVersionIds,
     results
   };
+}
+function canonicalSha256(value) {
+  const hex = value.replace(/^sha256:/iu, "").toLowerCase();
+  if (!/^[0-9a-f]{64}$/u.test(hex)) {
+    throw new Error("bundle digest must be one canonical SHA-256 digest");
+  }
+  return `sha256:${hex}`;
 }
 async function resolveArtifactPinTargets(inputs, repositoryRoot) {
   const targetsPath = inputs.targetsPath?.trim();

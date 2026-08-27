@@ -160,6 +160,60 @@ test("targets file rejects duplicate applications, extra keys, and manifest id d
   }
 });
 
+test("one attestation run keeps V4 bytes and emits the distinct V5 source domain", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "liskov-artifact-mixed-v4-v5-"));
+  try {
+    await mkdir(path.join(root, ".liskov"));
+    await writeJson(path.join(root, "build.json"), {
+      scriptIpfs: "ipfs://QmExactDiagnosticArtifact",
+      scriptHash: bundleSha256,
+      diagnostics: { failure: { mode: "exit" } }
+    });
+    await writeJson(path.join(root, ".liskov", "compat-v4.json"), authoredManifest("compat-v4"));
+    await writeJson(path.join(root, ".liskov", "diagnostic-v5.json"), v5Manifest("diagnostic-v5"));
+    await writeJson(path.join(root, "targets.json"), [
+      { applicationId: "compat-v4", authoredManifestPath: ".liskov/compat-v4.json" },
+      { applicationId: "diagnostic-v5", authoredManifestPath: ".liskov/diagnostic-v5.json" }
+    ]);
+
+    const posts: Array<Record<string, unknown>> = [];
+    const result = await runArtifactPinAttest({
+      buildManifestPath: path.join(root, "build.json"),
+      targetsPath: "targets.json",
+      audience: "slipway-artifact-pin",
+      urlTemplate: "https://liskov.example/api/applications/{applicationId}/artifact-pins/github"
+    }, {
+      getIdToken: async () => oidcToken(),
+      fetchImpl: (async (_input: string | URL | Request, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        posts.push(body);
+        return Response.json({ artifactVersionId: `version-${body.applicationId}` });
+      }) as typeof fetch,
+      environment: {},
+      now: () => new Date("2026-08-27T12:00:00.000Z"),
+      repositoryRoot: root
+    });
+
+    assert.equal(posts[0]?.domain, "proof.slipway.github-artifact-pin.v1");
+    assert.match(String(posts[0]?.authoredDigest), /^[0-9a-f]{64}$/u);
+    assert.match(String(posts[0]?.releaseIntentDigest), /^[0-9a-f]{64}$/u);
+    assert.equal(posts[1]?.domain, "proof.liskov.github-source-artifact.v1");
+    assert.deepEqual(posts[1], {
+      domain: "proof.liskov.github-source-artifact.v1",
+      applicationId: "diagnostic-v5",
+      manifestPath: ".liskov/diagnostic-v5.json",
+      scriptCid: "ipfs://QmExactDiagnosticArtifact",
+      bundleDigest: `sha256:${bundleSha256}`
+    });
+    assert.equal("authoredDigest" in posts[1]!, false);
+    assert.equal("releaseIntentDigest" in posts[1]!, false);
+    assert.equal("diagnostics" in posts[1]!, false);
+    assert.deepEqual(result.artifactVersionIds, ["version-compat-v4", "version-diagnostic-v5"]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 function authoredManifest(applicationId: string): Record<string, unknown> {
   return {
     schema: "proof.liskov.application-manifest",
@@ -177,6 +231,26 @@ function authoredManifest(applicationId: string): Record<string, unknown> {
         manifestPath: `.liskov/${applicationId}.json`
       }
     }
+  };
+}
+
+function v5Manifest(applicationId: string): Record<string, unknown> {
+  return {
+    schema: "proof.liskov.application-manifest",
+    schemaVersion: 5,
+    applicationId,
+    release: { mode: "source" },
+    runtime: {
+      kind: "javascript",
+      engine: "nodejs",
+      entrypoint: { file: "bundle.cjs" }
+    },
+    execution: { mode: "once" },
+    deployment: {
+      schedule: { duration: "10m" },
+      spend: { unit: "service_credit_micros", perJob: "50000" }
+    },
+    state: { mode: "off" }
   };
 }
 

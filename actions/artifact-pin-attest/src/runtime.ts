@@ -87,29 +87,37 @@ export async function runArtifactPinAttest(
   const results: Array<{ applicationId: string; artifactVersionId: string }> = [];
 
   for (const { target, bindings } of preparedTargets) {
-    const body: JsonRecord = {
-      domain: "proof.slipway.github-artifact-pin.v1",
-      applicationId: target.applicationId,
-      scriptCid,
-      bundleDigest,
-      authoredDigest: bindings.authoredDigest,
-      releaseIntentDigest: bindings.releaseIntentDigest,
-      generatedAt: stringField(buildManifest, "generatedAt")
-        ?? dependencies.now().toISOString(),
-      encryption: { mode: bindings.encryptionMode },
-      provenance: {
-        repository: oidcProvenance.repository,
-        ref: oidcProvenance.ref,
-        sha: oidcProvenance.sha,
-        workflow: dependencies.environment.GITHUB_WORKFLOW,
-        workflow_ref: oidcProvenance.workflowRef,
-        run_id: dependencies.environment.GITHUB_RUN_ID,
-        run_attempt: dependencies.environment.GITHUB_RUN_ATTEMPT,
-        actor: dependencies.environment.GITHUB_ACTOR,
-        event_name: dependencies.environment.GITHUB_EVENT_NAME
-      }
-    };
-    if (diagnostics) body.diagnostics = diagnostics;
+    const body: JsonRecord = bindings.kind === "v5-source"
+      ? {
+          domain: "proof.liskov.github-source-artifact.v1",
+          applicationId: target.applicationId,
+          manifestPath: target.authoredManifestPath,
+          scriptCid,
+          bundleDigest: canonicalSha256(bundleDigest)
+        }
+      : {
+          domain: "proof.slipway.github-artifact-pin.v1",
+          applicationId: target.applicationId,
+          scriptCid,
+          bundleDigest,
+          authoredDigest: bindings.authoredDigest,
+          releaseIntentDigest: bindings.releaseIntentDigest,
+          generatedAt: stringField(buildManifest, "generatedAt")
+            ?? dependencies.now().toISOString(),
+          encryption: { mode: bindings.encryptionMode },
+          provenance: {
+            repository: oidcProvenance.repository,
+            ref: oidcProvenance.ref,
+            sha: oidcProvenance.sha,
+            workflow: dependencies.environment.GITHUB_WORKFLOW,
+            workflow_ref: oidcProvenance.workflowRef,
+            run_id: dependencies.environment.GITHUB_RUN_ID,
+            run_attempt: dependencies.environment.GITHUB_RUN_ATTEMPT,
+            actor: dependencies.environment.GITHUB_ACTOR,
+            event_name: dependencies.environment.GITHUB_EVENT_NAME
+          }
+        };
+    if (bindings.kind === "v4" && diagnostics) body.diagnostics = diagnostics;
 
     const url = inputs.urlTemplate.replaceAll(
       "{applicationId}",
@@ -151,6 +159,14 @@ export async function runArtifactPinAttest(
     artifactVersionIds,
     results
   };
+}
+
+function canonicalSha256(value: string): string {
+  const hex = value.replace(/^sha256:/iu, "").toLowerCase();
+  if (!/^[0-9a-f]{64}$/u.test(hex)) {
+    throw new Error("bundle digest must be one canonical SHA-256 digest");
+  }
+  return `sha256:${hex}`;
 }
 
 export async function resolveArtifactPinTargets(

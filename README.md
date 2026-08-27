@@ -30,7 +30,9 @@ jobs:
 
 Runs `pnpm install --frozen-lockfile → typecheck → test → build` (optional `smoke`),
 pins the Acurast deploy zip to IPFS **no-spend**, and posts a **GitHub-OIDC** artifact
-pin bound to the exact authored and release-intent digests. Existing callers keep
+pin. V4 targets remain bound to the exact authored and release-intent digests;
+identity-only V5 source targets are fenced by the server-owned source binding and
+never synthesize V4 digests or drafts. Existing callers keep
 the generated-zip defaults with `app-id`, `authored-manifest-path`,
 `working-directory`, `entrypoint`, `extra-files`, `node-version`, `smoke`, `attest`,
 and `pin-url`. The workflow exposes the CID, digest, uploaded build-manifest path,
@@ -62,10 +64,14 @@ relative non-empty JSON array with no extra keys:
 ]
 ```
 
-Each exact authored manifest must be V4, name the matching Application, and authorize
-an unencrypted `ipfs_bundle` build. The shared action mints one OIDC token, posts one
-manifest-bound pin per target, and retains the original single-target inputs and first
-`artifact-version-id` output for compatibility.
+Each exact target must name the matching Application and be either a V4 unencrypted
+`ipfs_bundle` build manifest or a retained V5 JavaScript source document. The shared
+action mints one OIDC token and posts one artifact per target. V4 requests retain the
+deployed domain and byte shape; V5 requests use
+`proof.liskov.github-source-artifact.v1` with manifest path, CID, and digest only, so
+Liskov resolves repository/ref/workflow/commit authority from verified OIDC plus the
+current source binding. The original single-target inputs and first
+`artifact-version-id` output remain compatible.
 
 ### `marketplace-ingest.yml` — catalog OIDC push (ADR-0006 §A1)
 
@@ -221,6 +227,8 @@ Compose your own job from these (`uses: proof-computer/liskov-github-actions/act
 - `v1.2.3` allows Cargo callers to skip publishing derived-image GitHub build
   provenance while retaining deterministic byte proof, base-image attestation,
   and Liskov's exact OIDC/manifest/image binding.
+- `v1.2.4` lets one attested IPFS bundle target both existing V4 build manifests and
+  identity-only V5 source documents without creating a V4 compatibility draft.
 - Reusable workflows reference their own JS actions by the literal `@v1` major tag,
   so a caller pinned to `@v1` executes the matching released action surface.
 

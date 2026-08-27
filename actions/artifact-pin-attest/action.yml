@@ -9,7 +9,7 @@ inputs:
     description: "Path to the script manifest produced by the ipfs-pin action."
     required: true
   authored-manifest-path:
-    description: "Path to the exact authored application-manifest V4 used for this build (single-target mode)."
+    description: "Path to the exact authored V4 manifest or retained V5 source document used for this build (single-target mode)."
     required: false
     default: ""
   targets-path:
