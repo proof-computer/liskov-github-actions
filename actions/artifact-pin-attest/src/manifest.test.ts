@@ -34,11 +34,41 @@ test("artifact evidence binds the exact manifest and normalized release intent",
     }
   }, "example");
 
+  assert.equal(first.kind, "v4");
+  assert.equal(reordered.kind, "v4");
+  if (first.kind !== "v4" || reordered.kind !== "v4") {
+    throw new Error("V4 manifests must keep V4 artifact bindings");
+  }
   assert.match(first.authoredDigest, /^[0-9a-f]{64}$/u);
   assert.match(first.releaseIntentDigest, /^[0-9a-f]{64}$/u);
   assert.notEqual(first.authoredDigest, reordered.authoredDigest);
   assert.equal(first.releaseIntentDigest, reordered.releaseIntentDigest);
   assert.equal(first.encryptionMode, "none");
+});
+
+test("retained V5 source artifacts carry no synthesized V4 digests", () => {
+  const bindings = artifactPinBindings({
+    schema: "proof.liskov.application-manifest",
+    schemaVersion: 5,
+    applicationId: "diagnostic-v5",
+    release: { mode: "source" },
+    runtime: {
+      kind: "javascript",
+      engine: "nodejs",
+      entrypoint: { file: "bundle.cjs" }
+    }
+  }, "diagnostic-v5");
+  assert.deepEqual(bindings, { kind: "v5-source" });
+  assert.throws(
+    () => artifactPinBindings({
+      schema: "proof.liskov.application-manifest",
+      schemaVersion: 5,
+      applicationId: "diagnostic-v5",
+      release: { mode: "source" },
+      runtime: { kind: "native_image" }
+    }, "diagnostic-v5"),
+    /runtime.kind javascript/u
+  );
 });
 
 test("artifact evidence rejects pinned or wrong-kind release arms", () => {

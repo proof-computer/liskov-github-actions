@@ -1,23 +1,46 @@
 import { createHash } from "node:crypto";
 
-export interface ArtifactPinBindings {
+export interface V4ArtifactPinBindings {
+  readonly kind: "v4";
   readonly authoredDigest: string;
   readonly releaseIntentDigest: string;
   readonly encryptionMode: "none" | "aes-256-gcm-bundle-v1";
 }
 
+export interface V5SourceArtifactBindings {
+  readonly kind: "v5-source";
+}
+
+export type ArtifactPinBindings = V4ArtifactPinBindings | V5SourceArtifactBindings;
+
 export function artifactPinBindings(
   manifest: Record<string, unknown>,
   applicationId: string
 ): ArtifactPinBindings {
-  if (
-    manifest.schema !== "proof.liskov.application-manifest"
-    || manifest.schemaVersion !== 4
-  ) {
-    throw new Error("authored manifest must declare proof.liskov.application-manifest v4");
+  if (manifest.schema !== "proof.liskov.application-manifest") {
+    throw new Error("authored manifest must declare proof.liskov.application-manifest");
   }
   if (manifest.applicationId !== applicationId) {
     throw new Error(`authored manifest applicationId must be ${applicationId}`);
+  }
+  if (manifest.schemaVersion === 5) {
+    const release = recordField(manifest, "release");
+    if (release.mode !== "source") {
+      throw new Error("V5 artifact attestation requires release.mode source");
+    }
+    const runtime = recordField(manifest, "runtime");
+    if (runtime.kind !== "javascript") {
+      throw new Error("the retained V5 IPFS artifact workflow currently requires runtime.kind javascript");
+    }
+    for (const deferred of ["ingress", "cohort", "hooks", "integrations"]) {
+      if (deferred in manifest) {
+        throw new Error(`${deferred} is deferred from thin V5 source artifacts`);
+      }
+    }
+    return { kind: "v5-source" };
+  }
+  if (manifest.schemaVersion !== 4) {
+    throw new Error("authored manifest schemaVersion must be 4 or 5");
   }
   const release = recordField(manifest, "release");
   if (release.mode !== "build") {
@@ -42,6 +65,7 @@ export function artifactPinBindings(
   builder.allowedRefs = [...builder.allowedRefs].sort();
 
   return {
+    kind: "v4",
     authoredDigest: canonicalDigest(manifest),
     releaseIntentDigest: canonicalDigest({
       schema: "proof.liskov.release-intent",
