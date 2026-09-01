@@ -102,7 +102,7 @@ test("retained V5 source publication refuses deferred arms and V4 documents", ()
       observed: context,
       expected: context
     }),
-    /deferred from thin V5/u
+    /unknown_field \/ingress/u
   );
   assert.throws(
     () => bindRetainedSourcePublication({
@@ -111,7 +111,7 @@ test("retained V5 source publication refuses deferred arms and V4 documents", ()
       observed: context,
       expected: context
     }),
-    /schemaVersion 5/u
+    /invalid_manifest/u
   );
 });
 

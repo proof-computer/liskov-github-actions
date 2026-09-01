@@ -18,6 +18,16 @@ const manifest = {
       workflowRef: "proof-computer/example/.github/workflows/release.yml@refs/heads/main",
       manifestPath: ".liskov/example.manifest.json"
     }
+  },
+  runtime: { command: "node index.js" },
+  deployment: {
+    parallelism: 1,
+    schedule: { durationMs: 1_800_000 },
+    lifecycle: {
+      renewal: { mode: "after_scheduled_end" },
+      update: { timing: "immediate", existingJobs: { mode: "run_until_scheduled_end" } },
+      recovery: { runtimeFailure: { mode: "wait_until_scheduled_end" } }
+    }
   }
 };
 
@@ -56,16 +66,28 @@ test("retained V5 source artifacts carry no synthesized V4 digests", () => {
       kind: "javascript",
       engine: "nodejs",
       entrypoint: { file: "bundle.cjs" }
-    }
+    },
+    execution: { mode: "once" },
+    deployment: {
+      schedule: { duration: "10m" },
+      spend: { unit: "service_credit_micros", perJob: "50000" }
+    },
+    state: { mode: "off" }
   }, "diagnostic-v5");
-  assert.deepEqual(bindings, { kind: "v5-source" });
+  assert.deepEqual(bindings, { kind: "registered-source" });
   assert.throws(
     () => artifactPinBindings({
       schema: "proof.liskov.application-manifest",
       schemaVersion: 5,
       applicationId: "diagnostic-v5",
       release: { mode: "source" },
-      runtime: { kind: "native_image" }
+      runtime: { kind: "native_image", image: { name: "debian-trixie", version: "0.1" }, entrypoint: { executable: "/bin/sh" } },
+      execution: { mode: "once" },
+      deployment: {
+        schedule: { duration: "10m" },
+        spend: { unit: "service_credit_micros", perJob: "50000" }
+      },
+      state: { mode: "off" }
     }, "diagnostic-v5"),
     /runtime.kind javascript/u
   );

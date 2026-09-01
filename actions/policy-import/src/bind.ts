@@ -4,6 +4,10 @@ import {
   type SourcePublicationContext,
   type SourcePublicationEvidence
 } from "../../shared/src/source-publication.js";
+import {
+  requireValidPolicyManifest,
+  supportsRegisteredSourcePublication
+} from "../../shared/src/policy-contract.js";
 
 export function bindPolicyImportManifest(input: {
   manifest: unknown;
@@ -12,16 +16,13 @@ export function bindPolicyImportManifest(input: {
   env: NodeJS.ProcessEnv;
   expected?: Partial<SourcePublicationContext>;
 }): { document: Record<string, unknown>; sourceEvidence?: SourcePublicationEvidence } {
-  const document = input.manifest;
-  if (typeof document !== "object" || document === null || Array.isArray(document)) {
-    throw new Error("authored manifest must contain a JSON object");
-  }
-  const record = document as Record<string, unknown>;
+  const result = requireValidPolicyManifest(input.manifest);
+  const record = result.document!;
   const documentId = record.applicationId;
   if (typeof documentId === "string" && documentId !== input.applicationId) {
     throw new Error(`authored manifest applicationId must be ${input.applicationId}`);
   }
-  if (record.schemaVersion === 4) {
+  if (!supportsRegisteredSourcePublication(result)) {
     return { document: record };
   }
   const observed = observedGithubSource(input.env, input.manifestPath);

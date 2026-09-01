@@ -87,7 +87,7 @@ export async function runArtifactPinAttest(
   const results: Array<{ applicationId: string; artifactVersionId: string }> = [];
 
   for (const { target, bindings } of preparedTargets) {
-    const body: JsonRecord = bindings.kind === "v5-source"
+    const body: JsonRecord = bindings.kind === "registered-source"
       ? {
           domain: "proof.liskov.github-source-artifact.v1",
           applicationId: target.applicationId,
