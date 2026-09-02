@@ -219,7 +219,7 @@ function authoredManifest(applicationId: string): Record<string, unknown> {
     schema: "proof.liskov.application-manifest",
     schemaVersion: 4,
     applicationId,
-    metadata: { title: applicationId },
+    metadata: { description: applicationId },
     release: {
       mode: "build",
       artifact: { kind: "ipfs_bundle", encryption: { mode: "none" } },
@@ -229,6 +229,16 @@ function authoredManifest(applicationId: string): Record<string, unknown> {
         allowedRefs: ["refs/heads/main"],
         workflowRef: "proof-computer/liskov-diagnostic/.github/workflows/release.yml@refs/heads/main",
         manifestPath: `.liskov/${applicationId}.json`
+      }
+    },
+    runtime: { command: "node index.js" },
+    deployment: {
+      parallelism: 1,
+      schedule: { durationMs: 1_800_000 },
+      lifecycle: {
+        renewal: { mode: "after_scheduled_end" },
+        update: { timing: "immediate", existingJobs: { mode: "run_until_scheduled_end" } },
+        recovery: { runtimeFailure: { mode: "wait_until_scheduled_end" } }
       }
     }
   };

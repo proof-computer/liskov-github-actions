@@ -15,7 +15,25 @@ test("V4 policy import stays explicit and does not require source evidence", () 
       schema: "proof.liskov.application-manifest",
       schemaVersion: 4,
       applicationId: "example",
-      release: { mode: "build" }
+      release: {
+        mode: "pinned",
+        artifact: {
+          kind: "ipfs_bundle",
+          cid: "ipfs://QmExample",
+          digest: `sha256:${"a".repeat(64)}`,
+          encryption: { mode: "none" }
+        }
+      },
+      runtime: { command: "node index.js" },
+      deployment: {
+        parallelism: 1,
+        schedule: { durationMs: 1_800_000 },
+        lifecycle: {
+          renewal: { mode: "after_scheduled_end" },
+          update: { timing: "immediate", existingJobs: { mode: "run_until_scheduled_end" } },
+          recovery: { runtimeFailure: { mode: "wait_until_scheduled_end" } }
+        }
+      }
     },
     applicationId: "example",
     manifestPath: ".liskov/app.json",

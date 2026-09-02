@@ -995,14 +995,14 @@ var require_util = __commonJS({
         }
         const port = url.port != null ? url.port : url.protocol === "https:" ? 443 : 80;
         let origin = url.origin != null ? url.origin : `${url.protocol}//${url.hostname}:${port}`;
-        let path = url.path != null ? url.path : `${url.pathname || ""}${url.search || ""}`;
+        let path2 = url.path != null ? url.path : `${url.pathname || ""}${url.search || ""}`;
         if (origin.endsWith("/")) {
           origin = origin.substring(0, origin.length - 1);
         }
-        if (path && !path.startsWith("/")) {
-          path = `/${path}`;
+        if (path2 && !path2.startsWith("/")) {
+          path2 = `/${path2}`;
         }
-        url = new URL(origin + path);
+        url = new URL(origin + path2);
       }
       return url;
     }
@@ -2616,20 +2616,20 @@ var require_parseParams = __commonJS({
 var require_basename = __commonJS({
   "node_modules/.pnpm/@fastify+busboy@2.1.1/node_modules/@fastify/busboy/lib/utils/basename.js"(exports2, module2) {
     "use strict";
-    module2.exports = function basename(path) {
-      if (typeof path !== "string") {
+    module2.exports = function basename(path2) {
+      if (typeof path2 !== "string") {
         return "";
       }
-      for (var i = path.length - 1; i >= 0; --i) {
-        switch (path.charCodeAt(i)) {
+      for (var i = path2.length - 1; i >= 0; --i) {
+        switch (path2.charCodeAt(i)) {
           case 47:
           // '/'
           case 92:
-            path = path.slice(i + 1);
-            return path === ".." || path === "." ? "" : path;
+            path2 = path2.slice(i + 1);
+            return path2 === ".." || path2 === "." ? "" : path2;
         }
       }
-      return path === ".." || path === "." ? "" : path;
+      return path2 === ".." || path2 === "." ? "" : path2;
     };
   }
 });
@@ -5659,7 +5659,7 @@ var require_request = __commonJS({
     }
     var Request = class _Request {
       constructor(origin, {
-        path,
+        path: path2,
         method,
         body,
         headers,
@@ -5673,11 +5673,11 @@ var require_request = __commonJS({
         throwOnError,
         expectContinue
       }, handler) {
-        if (typeof path !== "string") {
+        if (typeof path2 !== "string") {
           throw new InvalidArgumentError("path must be a string");
-        } else if (path[0] !== "/" && !(path.startsWith("http://") || path.startsWith("https://")) && method !== "CONNECT") {
+        } else if (path2[0] !== "/" && !(path2.startsWith("http://") || path2.startsWith("https://")) && method !== "CONNECT") {
           throw new InvalidArgumentError("path must be an absolute URL or start with a slash");
-        } else if (invalidPathRegex.exec(path) !== null) {
+        } else if (invalidPathRegex.exec(path2) !== null) {
           throw new InvalidArgumentError("invalid request path");
         }
         if (typeof method !== "string") {
@@ -5740,7 +5740,7 @@ var require_request = __commonJS({
         this.completed = false;
         this.aborted = false;
         this.upgrade = upgrade || null;
-        this.path = query ? util.buildURL(path, query) : path;
+        this.path = query ? util.buildURL(path2, query) : path2;
         this.origin = origin;
         this.idempotent = idempotent == null ? method === "HEAD" || method === "GET" : idempotent;
         this.blocking = blocking == null ? false : blocking;
@@ -6748,9 +6748,9 @@ var require_RedirectHandler = __commonJS({
           return this.handler.onHeaders(statusCode, headers, resume, statusText);
         }
         const { origin, pathname, search } = util.parseURL(new URL(this.location, this.opts.origin && new URL(this.opts.path, this.opts.origin)));
-        const path = search ? `${pathname}${search}` : pathname;
+        const path2 = search ? `${pathname}${search}` : pathname;
         this.opts.headers = cleanRequestHeaders(this.opts.headers, statusCode === 303, this.opts.origin !== origin);
-        this.opts.path = path;
+        this.opts.path = path2;
         this.opts.origin = origin;
         this.opts.maxRedirections = 0;
         this.opts.query = null;
@@ -7990,7 +7990,7 @@ var require_client = __commonJS({
         writeH2(client, client[kHTTP2Session], request);
         return;
       }
-      const { body, method, path, host, upgrade, headers, blocking, reset } = request;
+      const { body, method, path: path2, host, upgrade, headers, blocking, reset } = request;
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
       if (body && typeof body.read === "function") {
         body.read(0);
@@ -8040,7 +8040,7 @@ var require_client = __commonJS({
       if (blocking) {
         socket[kBlocking] = true;
       }
-      let header = `${method} ${path} HTTP/1.1\r
+      let header = `${method} ${path2} HTTP/1.1\r
 `;
       if (typeof host === "string") {
         header += `host: ${host}\r
@@ -8103,7 +8103,7 @@ upgrade: ${upgrade}\r
       return true;
     }
     function writeH2(client, session, request) {
-      const { body, method, path, host, upgrade, expectContinue, signal, headers: reqHeaders } = request;
+      const { body, method, path: path2, host, upgrade, expectContinue, signal, headers: reqHeaders } = request;
       let headers;
       if (typeof reqHeaders === "string") headers = Request[kHTTP2CopyHeaders](reqHeaders.trim());
       else headers = reqHeaders;
@@ -8146,7 +8146,7 @@ upgrade: ${upgrade}\r
         });
         return true;
       }
-      headers[HTTP2_HEADER_PATH] = path;
+      headers[HTTP2_HEADER_PATH] = path2;
       headers[HTTP2_HEADER_SCHEME] = "https";
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
       if (body && typeof body.read === "function") {
@@ -10386,20 +10386,20 @@ var require_mock_utils = __commonJS({
       }
       return true;
     }
-    function safeUrl(path) {
-      if (typeof path !== "string") {
-        return path;
+    function safeUrl(path2) {
+      if (typeof path2 !== "string") {
+        return path2;
       }
-      const pathSegments = path.split("?");
+      const pathSegments = path2.split("?");
       if (pathSegments.length !== 2) {
-        return path;
+        return path2;
       }
       const qp = new URLSearchParams(pathSegments.pop());
       qp.sort();
       return [...pathSegments, qp.toString()].join("?");
     }
-    function matchKey(mockDispatch2, { path, method, body, headers }) {
-      const pathMatch = matchValue(mockDispatch2.path, path);
+    function matchKey(mockDispatch2, { path: path2, method, body, headers }) {
+      const pathMatch = matchValue(mockDispatch2.path, path2);
       const methodMatch = matchValue(mockDispatch2.method, method);
       const bodyMatch = typeof mockDispatch2.body !== "undefined" ? matchValue(mockDispatch2.body, body) : true;
       const headersMatch = matchHeaders(mockDispatch2, headers);
@@ -10417,7 +10417,7 @@ var require_mock_utils = __commonJS({
     function getMockDispatch(mockDispatches, key) {
       const basePath = key.query ? buildURL(key.path, key.query) : key.path;
       const resolvedPath = typeof basePath === "string" ? safeUrl(basePath) : basePath;
-      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path }) => matchValue(safeUrl(path), resolvedPath));
+      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path: path2 }) => matchValue(safeUrl(path2), resolvedPath));
       if (matchedMockDispatches.length === 0) {
         throw new MockNotMatchedError(`Mock dispatch not matched for path '${resolvedPath}'`);
       }
@@ -10454,9 +10454,9 @@ var require_mock_utils = __commonJS({
       }
     }
     function buildKey(opts) {
-      const { path, method, body, headers, query } = opts;
+      const { path: path2, method, body, headers, query } = opts;
       return {
-        path,
+        path: path2,
         method,
         body,
         headers,
@@ -10905,10 +10905,10 @@ var require_pending_interceptors_formatter = __commonJS({
       }
       format(pendingInterceptors) {
         const withPrettyHeaders = pendingInterceptors.map(
-          ({ method, path, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
+          ({ method, path: path2, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
             Method: method,
             Origin: origin,
-            Path: path,
+            Path: path2,
             "Status code": statusCode,
             Persistent: persist ? "\u2705" : "\u274C",
             Invocations: timesInvoked,
@@ -15528,8 +15528,8 @@ var require_util6 = __commonJS({
         }
       }
     }
-    function validateCookiePath(path) {
-      for (const char of path) {
+    function validateCookiePath(path2) {
+      for (const char of path2) {
         const code = char.charCodeAt(0);
         if (code < 33 || char === ";") {
           throw new Error("Invalid cookie path");
@@ -17209,11 +17209,11 @@ var require_undici = __commonJS({
           if (typeof opts.path !== "string") {
             throw new InvalidArgumentError("invalid opts.path");
           }
-          let path = opts.path;
+          let path2 = opts.path;
           if (!opts.path.startsWith("/")) {
-            path = `/${path}`;
+            path2 = `/${path2}`;
           }
-          url = new URL(util.parseOrigin(url).origin + path);
+          url = new URL(util.parseOrigin(url).origin + path2);
         } else {
           if (!opts) {
             opts = typeof url === "object" ? url : {};
@@ -18436,7 +18436,7 @@ var require_path_utils = __commonJS({
     };
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.toPlatformPath = exports2.toWin32Path = exports2.toPosixPath = void 0;
-    var path = __importStar(require("path"));
+    var path2 = __importStar(require("path"));
     function toPosixPath(pth) {
       return pth.replace(/[\\]/g, "/");
     }
@@ -18446,7 +18446,7 @@ var require_path_utils = __commonJS({
     }
     exports2.toWin32Path = toWin32Path;
     function toPlatformPath(pth) {
-      return pth.replace(/[/\\]/g, path.sep);
+      return pth.replace(/[/\\]/g, path2.sep);
     }
     exports2.toPlatformPath = toPlatformPath;
   }
@@ -18510,7 +18510,7 @@ var require_io_util = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCmdPath = exports2.tryGetExecutablePath = exports2.isRooted = exports2.isDirectory = exports2.exists = exports2.READONLY = exports2.UV_FS_O_EXLOCK = exports2.IS_WINDOWS = exports2.unlink = exports2.symlink = exports2.stat = exports2.rmdir = exports2.rm = exports2.rename = exports2.readlink = exports2.readdir = exports2.open = exports2.mkdir = exports2.lstat = exports2.copyFile = exports2.chmod = void 0;
     var fs = __importStar(require("fs"));
-    var path = __importStar(require("path"));
+    var path2 = __importStar(require("path"));
     _a = fs.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
     exports2.IS_WINDOWS = process.platform === "win32";
     exports2.UV_FS_O_EXLOCK = 268435456;
@@ -18559,7 +18559,7 @@ var require_io_util = __commonJS({
         }
         if (stats && stats.isFile()) {
           if (exports2.IS_WINDOWS) {
-            const upperExt = path.extname(filePath).toUpperCase();
+            const upperExt = path2.extname(filePath).toUpperCase();
             if (extensions.some((validExt) => validExt.toUpperCase() === upperExt)) {
               return filePath;
             }
@@ -18583,11 +18583,11 @@ var require_io_util = __commonJS({
           if (stats && stats.isFile()) {
             if (exports2.IS_WINDOWS) {
               try {
-                const directory = path.dirname(filePath);
-                const upperName = path.basename(filePath).toUpperCase();
+                const directory = path2.dirname(filePath);
+                const upperName = path2.basename(filePath).toUpperCase();
                 for (const actualName of yield exports2.readdir(directory)) {
                   if (upperName === actualName.toUpperCase()) {
-                    filePath = path.join(directory, actualName);
+                    filePath = path2.join(directory, actualName);
                     break;
                   }
                 }
@@ -18682,7 +18682,7 @@ var require_io = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.findInPath = exports2.which = exports2.mkdirP = exports2.rmRF = exports2.mv = exports2.cp = void 0;
     var assert_1 = require("assert");
-    var path = __importStar(require("path"));
+    var path2 = __importStar(require("path"));
     var ioUtil = __importStar(require_io_util());
     function cp(source, dest, options = {}) {
       return __awaiter(this, void 0, void 0, function* () {
@@ -18691,7 +18691,7 @@ var require_io = __commonJS({
         if (destStat && destStat.isFile() && !force) {
           return;
         }
-        const newDest = destStat && destStat.isDirectory() && copySourceDirectory ? path.join(dest, path.basename(source)) : dest;
+        const newDest = destStat && destStat.isDirectory() && copySourceDirectory ? path2.join(dest, path2.basename(source)) : dest;
         if (!(yield ioUtil.exists(source))) {
           throw new Error(`no such file or directory: ${source}`);
         }
@@ -18703,7 +18703,7 @@ var require_io = __commonJS({
             yield cpDirRecursive(source, newDest, 0, force);
           }
         } else {
-          if (path.relative(source, newDest) === "") {
+          if (path2.relative(source, newDest) === "") {
             throw new Error(`'${newDest}' and '${source}' are the same file`);
           }
           yield copyFile(source, newDest, force);
@@ -18716,7 +18716,7 @@ var require_io = __commonJS({
         if (yield ioUtil.exists(dest)) {
           let destExists = true;
           if (yield ioUtil.isDirectory(dest)) {
-            dest = path.join(dest, path.basename(source));
+            dest = path2.join(dest, path2.basename(source));
             destExists = yield ioUtil.exists(dest);
           }
           if (destExists) {
@@ -18727,7 +18727,7 @@ var require_io = __commonJS({
             }
           }
         }
-        yield mkdirP(path.dirname(dest));
+        yield mkdirP(path2.dirname(dest));
         yield ioUtil.rename(source, dest);
       });
     }
@@ -18790,7 +18790,7 @@ var require_io = __commonJS({
         }
         const extensions = [];
         if (ioUtil.IS_WINDOWS && process.env["PATHEXT"]) {
-          for (const extension of process.env["PATHEXT"].split(path.delimiter)) {
+          for (const extension of process.env["PATHEXT"].split(path2.delimiter)) {
             if (extension) {
               extensions.push(extension);
             }
@@ -18803,12 +18803,12 @@ var require_io = __commonJS({
           }
           return [];
         }
-        if (tool.includes(path.sep)) {
+        if (tool.includes(path2.sep)) {
           return [];
         }
         const directories = [];
         if (process.env.PATH) {
-          for (const p of process.env.PATH.split(path.delimiter)) {
+          for (const p of process.env.PATH.split(path2.delimiter)) {
             if (p) {
               directories.push(p);
             }
@@ -18816,7 +18816,7 @@ var require_io = __commonJS({
         }
         const matches = [];
         for (const directory of directories) {
-          const filePath = yield ioUtil.tryGetExecutablePath(path.join(directory, tool), extensions);
+          const filePath = yield ioUtil.tryGetExecutablePath(path2.join(directory, tool), extensions);
           if (filePath) {
             matches.push(filePath);
           }
@@ -18932,7 +18932,7 @@ var require_toolrunner = __commonJS({
     var os = __importStar(require("os"));
     var events = __importStar(require("events"));
     var child = __importStar(require("child_process"));
-    var path = __importStar(require("path"));
+    var path2 = __importStar(require("path"));
     var io = __importStar(require_io());
     var ioUtil = __importStar(require_io_util());
     var timers_1 = require("timers");
@@ -19147,7 +19147,7 @@ var require_toolrunner = __commonJS({
       exec() {
         return __awaiter(this, void 0, void 0, function* () {
           if (!ioUtil.isRooted(this.toolPath) && (this.toolPath.includes("/") || IS_WINDOWS && this.toolPath.includes("\\"))) {
-            this.toolPath = path.resolve(process.cwd(), this.options.cwd || process.cwd(), this.toolPath);
+            this.toolPath = path2.resolve(process.cwd(), this.options.cwd || process.cwd(), this.toolPath);
           }
           this.toolPath = yield io.which(this.toolPath, true);
           return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
@@ -19647,7 +19647,7 @@ var require_core = __commonJS({
     var file_command_1 = require_file_command();
     var utils_1 = require_utils();
     var os = __importStar(require("os"));
-    var path = __importStar(require("path"));
+    var path2 = __importStar(require("path"));
     var oidc_utils_1 = require_oidc_utils();
     var ExitCode;
     (function(ExitCode2) {
@@ -19675,7 +19675,7 @@ var require_core = __commonJS({
       } else {
         (0, command_1.issueCommand)("add-path", {}, inputPath);
       }
-      process.env["PATH"] = `${inputPath}${path.delimiter}${process.env["PATH"]}`;
+      process.env["PATH"] = `${inputPath}${path2.delimiter}${process.env["PATH"]}`;
     }
     exports2.addPath = addPath;
     function getInput2(name, options) {
@@ -19812,6 +19812,86 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
   }
 });
 
+// actions/shared/policy-client-bundle/policy-client.cjs
+var require_policy_client = __commonJS({
+  "actions/shared/policy-client-bundle/policy-client.cjs"(exports2, module2) {
+    "use strict";
+    var { createHash } = require("node:crypto");
+    var { readFileSync } = require("node:fs");
+    var { gunzipSync } = require("node:zlib");
+    var path2 = require("node:path");
+    var encoder = new TextEncoder();
+    var decoder = new TextDecoder("utf-8", { fatal: true });
+    function loadPolicyContract(directory) {
+      const manifest = JSON.parse(readFileSync(path2.join(directory, "policy-client-bundle.json"), "utf8"));
+      const compressedWasm = readFileSync(path2.join(directory, manifest.artifact.file));
+      return createPolicyContract({ manifest, compressedWasm });
+    }
+    function createPolicyContract({ manifest, compressedWasm, evaluateOverride }) {
+      if (manifest.schema !== "proof.liskov.policy-client-bundle.v1") {
+        throw new Error("unsupported policy client bundle schema");
+      }
+      const compressedDigest = sha256(compressedWasm);
+      if (compressedDigest !== manifest.artifact.sha256) {
+        throw new Error(`policy client artifact digest mismatch: expected ${manifest.artifact.sha256}, got ${compressedDigest}`);
+      }
+      if (evaluateOverride) {
+        return { manifest, evaluate: evaluateOverride };
+      }
+      const wasm = gunzipSync(compressedWasm);
+      const wasmDigest = sha256(wasm);
+      if (wasmDigest !== manifest.artifact.uncompressedSha256) {
+        throw new Error(`policy client Wasm digest mismatch: expected ${manifest.artifact.uncompressedSha256}, got ${wasmDigest}`);
+      }
+      const module3 = new WebAssembly.Module(wasm);
+      if (WebAssembly.Module.imports(module3).length !== 0) {
+        throw new Error("policy client Wasm must not have ambient imports");
+      }
+      const instance = new WebAssembly.Instance(module3, {});
+      const exports3 = instance.exports;
+      for (const name of ["memory", "policy_contract_abi_version", "policy_contract_alloc", "policy_contract_free", "policy_contract_evaluate"]) {
+        if (!(name in exports3)) throw new Error(`policy client Wasm is missing ${name}`);
+      }
+      if (exports3.policy_contract_abi_version() !== manifest.abiVersion) {
+        throw new Error("policy client ABI version does not match its bundle manifest");
+      }
+      const evaluate = (request) => {
+        const requestBytes = encoder.encode(JSON.stringify(request));
+        const requestPointer = exports3.policy_contract_alloc(requestBytes.length);
+        const descriptorPointer = exports3.policy_contract_alloc(8);
+        let resultPointer = 0;
+        let resultLength = 0;
+        try {
+          new Uint8Array(exports3.memory.buffer, requestPointer, requestBytes.length).set(requestBytes);
+          const status = exports3.policy_contract_evaluate(requestPointer, requestBytes.length, descriptorPointer);
+          if (status !== 0) throw new Error(`policy client evaluator failed with ABI status ${status}`);
+          const descriptor = new DataView(exports3.memory.buffer, descriptorPointer, 8);
+          resultPointer = descriptor.getUint32(0, true);
+          resultLength = descriptor.getUint32(4, true);
+          const resultBytes = new Uint8Array(exports3.memory.buffer, resultPointer, resultLength).slice();
+          return JSON.parse(decoder.decode(resultBytes));
+        } finally {
+          if (resultPointer !== 0) exports3.policy_contract_free(resultPointer, resultLength);
+          exports3.policy_contract_free(descriptorPointer, 8);
+          exports3.policy_contract_free(requestPointer, requestBytes.length);
+        }
+      };
+      const described = evaluate({
+        schema: "proof.liskov.policy-client-request.v1",
+        operation: "describe"
+      });
+      if (JSON.stringify(described.supportedPairs) !== JSON.stringify(manifest.supportedPairs)) {
+        throw new Error("policy client Wasm registry does not match its bundle manifest");
+      }
+      return { manifest, evaluate };
+    }
+    function sha256(bytes) {
+      return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+    }
+    module2.exports = { createPolicyContract, loadPolicyContract };
+  }
+});
+
 // actions/policy-import/src/index.ts
 var import_promises = require("node:fs/promises");
 var core = __toESM(require_core(), 1);
@@ -19845,11 +19925,39 @@ function runtimeImportUrl(baseUrl, encodedApplicationId) {
   return url.toString();
 }
 
+// actions/shared/src/policy-contract.ts
+var import_node_path = __toESM(require("node:path"), 1);
+var import_policy_client = __toESM(require_policy_client(), 1);
+var loaded;
+function contract() {
+  if (loaded) return loaded;
+  const adapter = import_policy_client.default;
+  const bundledDirectory = typeof __dirname === "string" ? import_node_path.default.resolve(__dirname, "../../shared/policy-client-bundle") : import_node_path.default.resolve(process.cwd(), "actions/shared/policy-client-bundle");
+  loaded = adapter.loadPolicyContract(bundledDirectory);
+  return loaded;
+}
+function evaluatePolicyManifest(manifest) {
+  return contract().evaluate({
+    schema: "proof.liskov.policy-client-request.v1",
+    operation: "validate",
+    encoding: "json",
+    document: JSON.stringify(manifest)
+  });
+}
+function requireValidPolicyManifest(manifest) {
+  const result = evaluatePolicyManifest(manifest);
+  if (!result.valid || result.disposition !== "supported" || !result.document) {
+    const first = result.errors[0];
+    throw new Error(first ? `${first.code} ${first.pointer || "/"}: ${first.message}` : "authored manifest declares an unsupported policy schema pair");
+  }
+  return result;
+}
+function supportsRegisteredSourcePublication(result) {
+  return Boolean(result.pair && contract().manifest.publicationPairs.some((pair) => pair.schema === result.pair?.schema && pair.schemaVersion === result.pair?.schemaVersion && pair.releaseMode === "source"));
+}
+
 // actions/shared/src/source-publication.ts
-var import_node_crypto = require("node:crypto");
 var SOURCE_PUBLICATION_SCHEMA = "proof.liskov.source-publication-evidence.v1";
-var APPLICATION_MANIFEST_SCHEMA = "proof.liskov.application-manifest";
-var DEFERRED_ROOTS = ["ingress", "cohort", "hooks", "integrations"];
 function observedGithubSource(env, manifestPath) {
   const repository = requiredEnv(env, "GITHUB_REPOSITORY");
   const ref = requiredEnv(env, "GITHUB_REF");
@@ -19863,25 +19971,17 @@ function observedGithubSource(env, manifestPath) {
   };
 }
 function bindRetainedSourcePublication(input) {
-  const manifest = asObject(input.manifest);
-  if (!manifest) throw new Error("authored manifest must be an object");
-  if (manifest.schema !== APPLICATION_MANIFEST_SCHEMA) {
-    throw new Error(`authored manifest schema must be ${APPLICATION_MANIFEST_SCHEMA}`);
-  }
-  if (manifest.schemaVersion !== 5) {
-    throw new Error("retained source publication requires schemaVersion 5");
+  const result = requireValidPolicyManifest(input.manifest);
+  const manifest = result.document;
+  if (!supportsRegisteredSourcePublication(result)) {
+    throw new Error("the exact policy pair is not registered for source publication");
   }
   if (manifest.applicationId !== input.applicationId) {
     throw new Error(`authored manifest applicationId must be ${input.applicationId}`);
   }
   const release = asObject(manifest.release);
   if (!release || release.mode !== "source") {
-    throw new Error("retained source publication requires release.mode source");
-  }
-  for (const key of DEFERRED_ROOTS) {
-    if (key in manifest) {
-      throw new Error(`${key} is deferred from thin V5 and is not accepted as live source evidence`);
-    }
+    throw new Error("registered source publication requires release.mode source");
   }
   bindExact("repository", input.observed.repository, input.expected.repository);
   bindExact("ref", input.observed.ref, input.expected.ref);
@@ -19896,7 +19996,7 @@ function bindRetainedSourcePublication(input) {
   const evidence = {
     schema: SOURCE_PUBLICATION_SCHEMA,
     applicationId: input.applicationId,
-    authoredDigest: canonicalDigest(manifest),
+    authoredDigest: result.authoredDigest,
     repository: input.observed.repository,
     ref: input.observed.ref,
     workflowRef: input.observed.workflowRef,
@@ -19925,32 +20025,16 @@ function optional(value) {
 function asObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value) ? value : void 0;
 }
-function canonicalDigest(value) {
-  return (0, import_node_crypto.createHash)("sha256").update(canonicalJson(value)).digest("hex");
-}
-function canonicalJson(value) {
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
-  if (value && typeof value === "object") {
-    const record = value;
-    return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(",")}}`;
-  }
-  const serialized = JSON.stringify(value);
-  if (serialized === void 0) throw new Error("value is not canonical JSON");
-  return serialized;
-}
 
 // actions/policy-import/src/bind.ts
 function bindPolicyImportManifest(input) {
-  const document = input.manifest;
-  if (typeof document !== "object" || document === null || Array.isArray(document)) {
-    throw new Error("authored manifest must contain a JSON object");
-  }
-  const record = document;
+  const result = requireValidPolicyManifest(input.manifest);
+  const record = result.document;
   const documentId = record.applicationId;
   if (typeof documentId === "string" && documentId !== input.applicationId) {
     throw new Error(`authored manifest applicationId must be ${input.applicationId}`);
   }
-  if (record.schemaVersion === 4) {
+  if (!supportsRegisteredSourcePublication(result)) {
     return { document: record };
   }
   const observed = observedGithubSource(input.env, input.manifestPath);

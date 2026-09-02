@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { requireValidPolicyManifest } from "../../shared/src/policy-contract.js";
 
 export interface V4ArtifactPinBindings {
   readonly kind: "v4";
@@ -7,42 +7,29 @@ export interface V4ArtifactPinBindings {
   readonly encryptionMode: "none" | "aes-256-gcm-bundle-v1";
 }
 
-export interface V5SourceArtifactBindings {
-  readonly kind: "v5-source";
+export interface RegisteredSourceArtifactBindings {
+  readonly kind: "registered-source";
 }
 
-export type ArtifactPinBindings = V4ArtifactPinBindings | V5SourceArtifactBindings;
+export type ArtifactPinBindings = V4ArtifactPinBindings | RegisteredSourceArtifactBindings;
 
 export function artifactPinBindings(
   manifest: Record<string, unknown>,
   applicationId: string
 ): ArtifactPinBindings {
-  if (manifest.schema !== "proof.liskov.application-manifest") {
-    throw new Error("authored manifest must declare proof.liskov.application-manifest");
-  }
-  if (manifest.applicationId !== applicationId) {
+  const result = requireValidPolicyManifest(manifest);
+  const document = result.document!;
+  if (document.applicationId !== applicationId) {
     throw new Error(`authored manifest applicationId must be ${applicationId}`);
   }
-  if (manifest.schemaVersion === 5) {
-    const release = recordField(manifest, "release");
-    if (release.mode !== "source") {
-      throw new Error("V5 artifact attestation requires release.mode source");
-    }
-    const runtime = recordField(manifest, "runtime");
+  const release = recordField(document, "release");
+  if (release.mode === "source") {
+    const runtime = recordField(document, "runtime");
     if (runtime.kind !== "javascript") {
-      throw new Error("the retained V5 IPFS artifact workflow currently requires runtime.kind javascript");
+      throw new Error("the registered IPFS artifact workflow currently requires runtime.kind javascript");
     }
-    for (const deferred of ["ingress", "cohort", "hooks", "integrations"]) {
-      if (deferred in manifest) {
-        throw new Error(`${deferred} is deferred from thin V5 source artifacts`);
-      }
-    }
-    return { kind: "v5-source" };
+    return { kind: "registered-source" };
   }
-  if (manifest.schemaVersion !== 4) {
-    throw new Error("authored manifest schemaVersion must be 4 or 5");
-  }
-  const release = recordField(manifest, "release");
   if (release.mode !== "build") {
     throw new Error("artifact pins require an authored build release");
   }
@@ -57,40 +44,12 @@ export function artifactPinBindings(
     );
   }
 
-  const normalizedRelease = structuredClone(release);
-  const builder = recordField(normalizedRelease, "builder");
-  if (!Array.isArray(builder.allowedRefs)) {
-    throw new Error("GitHub builder allowedRefs must be an array");
-  }
-  builder.allowedRefs = [...builder.allowedRefs].sort();
-
   return {
     kind: "v4",
-    authoredDigest: canonicalDigest(manifest),
-    releaseIntentDigest: canonicalDigest({
-      schema: "proof.liskov.release-intent",
-      schemaVersion: 4,
-      applicationId,
-      release: normalizedRelease
-    }),
+    authoredDigest: result.authoredDigest!,
+    releaseIntentDigest: result.releaseIntentDigest!,
     encryptionMode: "none"
   };
-}
-
-export function canonicalDigest(value: unknown): string {
-  return createHash("sha256").update(canonicalJson(value)).digest("hex");
-}
-
-function canonicalJson(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
-  if (value && typeof value === "object") {
-    const record = value as Record<string, unknown>;
-    return `{${Object.keys(record).sort().map((key) =>
-      `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(",")}}`;
-  }
-  const serialized = JSON.stringify(value);
-  if (serialized === undefined) throw new Error("value is not canonical JSON");
-  return serialized;
 }
 
 function recordField(
