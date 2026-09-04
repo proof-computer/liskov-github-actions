@@ -3,3 +3,7 @@ node_modules/
 __pycache__/
 *.pyc
 # NOTE: actions/*/dist is INTENTIONALLY committed — consumers run the action as-is.
+
+# Agent worktrees live here (scripts/new-agent-worktree.sh); they are separate
+# checkouts, never repository content.
+.worktrees/

@@ -55233,7 +55233,7 @@ async function run() {
     bootstrapMode: core.getInput("bootstrap-mode") || "standard",
     expectedSha256: core.getInput("expected-sha256"),
     sourceImageUrl: core.getInput("source-image-url"),
-    liskovUrl: core.getInput("liskov-url") || "https://liskov.proof.computer",
+    liskovUrl: core.getInput("liskov-url") || "https://api.liskov.proof.computer",
     audience: core.getInput("audience") || "liskov-runtime-image-upload"
   };
   const outputs = await uploadRuntimeImage(inputs, {

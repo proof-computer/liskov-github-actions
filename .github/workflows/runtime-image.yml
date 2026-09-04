@@ -44,7 +44,7 @@ on:
         description: "Liskov service base URL used for import and upload."
         required: false
         type: string
-        default: "https://liskov.proof.computer"
+        default: "https://api.liskov.proof.computer"
       audience:
         description: "GitHub OIDC audience for runtime-image upload authorization."
         required: false

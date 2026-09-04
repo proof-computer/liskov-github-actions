@@ -28,7 +28,7 @@ inputs:
   liskov-url:
     description: "Liskov service base URL."
     required: false
-    default: "https://liskov.proof.computer"
+    default: "https://api.liskov.proof.computer"
   audience:
     description: "GitHub OIDC audience for runtime-image upload authorization."
     required: false

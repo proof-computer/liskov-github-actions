@@ -19814,7 +19814,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
 
 // actions/marketplace-ingest/src/index.ts
 var core = __toESM(require_core(), 1);
-var DEFAULT_URL = "https://liskov.proof.computer/api/marketplace/ingest";
+var DEFAULT_URL = "https://api.liskov.proof.computer/api/marketplace/ingest";
 async function run() {
   const ingestUrl = core.getInput("ingest-url") || process.env.LISKOV_MARKETPLACE_INGEST_URL || DEFAULT_URL;
   const audience = core.getInput("audience") || "liskov-marketplace-ingest";
