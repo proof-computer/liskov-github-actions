@@ -19896,6 +19896,34 @@ var require_policy_client = __commonJS({
 var import_node_path3 = __toESM(require("node:path"), 1);
 var core = __toESM(require_core(), 1);
 
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_64f35f1ea6fb4925e28f90dfa85f6ad3/node_modules/@proof-computer/liskov-runtime/dist/encrypted-code.js
+var ENCRYPTED_CODE_DOMAIN = "proof.liskov.encrypted-code.v1";
+var ENCRYPTED_CODE_KEY_ENV = "LISKOV_CODE_KEY";
+var MAX_ENCRYPTED_CODE_BYTES = 16 * 1024 * 1024;
+function parseEncryptedCodeDescriptor(value) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("encrypted_code_descriptor_invalid");
+  }
+  const record = value;
+  const fields = ["domain", "algorithm", "keySecretId", "iv", "authTag", "plaintextDigest", "ciphertextDigest"];
+  if (Object.keys(record).length !== fields.length || fields.some((field) => typeof record[field] !== "string")) {
+    throw new Error("encrypted_code_descriptor_invalid");
+  }
+  if (record.domain !== ENCRYPTED_CODE_DOMAIN || record.algorithm !== "aes-256-gcm" || !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/u.test(record.keySecretId) || !/^sha256:[0-9a-f]{64}$/u.test(record.plaintextDigest) || !/^sha256:[0-9a-f]{64}$/u.test(record.ciphertextDigest) || record.plaintextDigest === record.ciphertextDigest) {
+    throw new Error("encrypted_code_descriptor_invalid");
+  }
+  decodeCanonicalBase64(record.iv, 12);
+  decodeCanonicalBase64(record.authTag, 16);
+  return record;
+}
+function decodeCanonicalBase64(value, size) {
+  const bytes = Buffer.from(value, "base64");
+  if (bytes.length !== size || bytes.toString("base64") !== value) {
+    throw new Error("encrypted_code_base64_invalid");
+  }
+  return bytes;
+}
+
 // actions/artifact-pin-attest/src/runtime.ts
 var import_promises = require("node:fs/promises");
 var import_node_path2 = __toESM(require("node:path"), 1);
@@ -20054,7 +20082,7 @@ function requireValidPolicyManifest(manifest) {
 }
 
 // actions/artifact-pin-attest/src/manifest.ts
-function artifactPinBindings(manifest, applicationId) {
+function artifactPinBindings(manifest, applicationId, encryptedCode, entrypoint) {
   const result = requireValidPolicyManifest(manifest);
   const document = result.document;
   if (document.applicationId !== applicationId) {
@@ -20066,8 +20094,23 @@ function artifactPinBindings(manifest, applicationId) {
     if (runtime.kind !== "javascript") {
       throw new Error("the registered IPFS artifact workflow currently requires runtime.kind javascript");
     }
+    if (encryptedCode !== void 0) {
+      parseEncryptedCodeDescriptor(encryptedCode);
+      if (runtime.engine !== void 0 && runtime.engine !== "nodejs" || recordField(runtime, "entrypoint").file !== entrypoint) {
+        throw new Error("encrypted code requires the exact Node.js bootstrap entrypoint");
+      }
+      const configuration = recordField(document, "configuration");
+      const secrets = configuration.secrets;
+      if (!Array.isArray(secrets) || !secrets.some((secret) => {
+        const destination = recordField(secret, "destination");
+        return secret.secretId === encryptedCode.keySecretId && secret.required !== false && destination.kind === "environment" && destination.name === ENCRYPTED_CODE_KEY_ENV;
+      })) {
+        throw new Error("encrypted code requires its Lockbox key secret at LISKOV_CODE_KEY");
+      }
+    }
     return { kind: "registered-source" };
   }
+  if (encryptedCode !== void 0) throw new Error("encrypted payloads require a V5 source release");
   if (release.mode !== "build") {
     throw new Error("artifact pins require an authored build release");
   }
@@ -20147,6 +20190,8 @@ async function runArtifactPinAttest(inputs, dependencies) {
     buildManifest.diagnostics,
     `build manifest ${inputs.buildManifestPath}.diagnostics`
   );
+  const encryptedCode = buildManifest.encryptedCode === void 0 ? void 0 : parseEncryptedCodeDescriptor(buildManifest.encryptedCode);
+  const artifact = buildManifest.artifact;
   const targets = await resolveArtifactPinTargets(inputs, dependencies.repositoryRoot);
   const preparedTargets = await Promise.all(targets.map(async (target) => {
     const manifestFile = resolveWithin(
@@ -20160,7 +20205,7 @@ async function runArtifactPinAttest(inputs, dependencies) {
     );
     return {
       target,
-      bindings: artifactPinBindings(authoredManifest, target.applicationId)
+      bindings: artifactPinBindings(authoredManifest, target.applicationId, encryptedCode, artifact?.entrypoint)
     };
   }));
   const token = await dependencies.getIdToken(inputs.audience);
@@ -20172,7 +20217,8 @@ async function runArtifactPinAttest(inputs, dependencies) {
       applicationId: target.applicationId,
       manifestPath: target.authoredManifestPath,
       scriptCid,
-      bundleDigest: canonicalSha256(bundleDigest)
+      bundleDigest: canonicalSha256(bundleDigest),
+      ...encryptedCode === void 0 ? {} : { encryptedCode }
     } : {
       domain: "proof.slipway.github-artifact-pin.v1",
       applicationId: target.applicationId,

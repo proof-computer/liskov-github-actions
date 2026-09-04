@@ -53,6 +53,14 @@ on:
         required: false
         type: string
         default: "app.cjs"
+      encryption-mode:
+        description: "none or aes-256-gcm-payload-v1. The encrypted entrypoint exports start(runtime)."
+        type: string
+        default: "none"
+      encryption-secret-id:
+        description: "Existing required Lockbox secret delivered to LISKOV_CODE_KEY."
+        type: string
+        default: ""
       extra-files:
         description: "Extra dist/ files to include in the zip (e.g. app.cjs for a stage0 entrypoint)."
         required: false
@@ -128,6 +136,9 @@ on:
         type: string
         default: ""
     secrets:
+      LISKOV_CODE_ENCRYPTION_KEY:
+        description: "Canonical base64 code key, matching the existing Lockbox secret."
+        required: false
       ACURAST_IPFS_URL:
         required: false
       ACURAST_IPFS_API_KEY:
@@ -206,6 +217,8 @@ jobs:
           app-name: ${{ inputs.app-id }}
           working-directory: ${{ inputs.working-directory }}
           entrypoint: ${{ inputs.entrypoint }}
+          encryption-mode: ${{ inputs.encryption-mode }}
+          encryption-secret-id: ${{ inputs.encryption-secret-id }}
           extra-files: ${{ inputs.extra-files }}
           artifact-path: ${{ inputs.artifact-path }}
           metadata-path: ${{ inputs.artifact-metadata-path }}
@@ -213,6 +226,7 @@ jobs:
           gateway-url: ${{ inputs.ipfs-gateway-url }}
           manifest-name: ${{ inputs.upload-manifest-path }}
         env:
+          LISKOV_CODE_ENCRYPTION_KEY: ${{ secrets.LISKOV_CODE_ENCRYPTION_KEY }}
           ACURAST_IPFS_URL: ${{ secrets.ACURAST_IPFS_URL }}
           ACURAST_IPFS_API_KEY: ${{ secrets.ACURAST_IPFS_API_KEY }}
 

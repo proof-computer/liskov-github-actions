@@ -4,6 +4,8 @@
 // intentionally excluded — keep spend-capable upload out of the reusable surface).
 
 import * as core from "@actions/core";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 
 import { runIpfsPin } from "./runtime.js";
 
@@ -17,6 +19,9 @@ async function run(): Promise<void> {
   const restartPolicy = core.getInput("restart-policy") || "onFailure";
   const endpoint = (core.getInput("ipfs-endpoint") || process.env.ACURAST_IPFS_URL || DEFAULT_IPFS_ENDPOINT).replace(/\/+$/u, "");
   const apiKey = (process.env.ACURAST_IPFS_API_KEY || "").trim();
+  const encryptionMode = core.getInput("encryption-mode") || "none";
+  const encryptionKey = process.env.LISKOV_CODE_ENCRYPTION_KEY;
+  if (encryptionKey) core.setSecret(encryptionKey);
   const result = await runIpfsPin({
     workingDirectory: workingDir,
     appName,
@@ -29,7 +34,12 @@ async function run(): Promise<void> {
     metadataPath: optionalInput("metadata-path"),
     scriptIpfs: optionalInput("script-ipfs"),
     gatewayUrl: optionalInput("gateway-url"),
-    manifestName: optionalInput("manifest-name")
+    manifestName: optionalInput("manifest-name"),
+    encryptionMode, encryptionKey, encryptionSecretId: optionalInput("encryption-secret-id")
+  }, {
+    fetchImpl: fetch, now: () => new Date(), environment: process.env,
+    encryptedCodeLoader: encryptionMode === "none" ? undefined
+      : await readFile(path.join(__dirname, "encrypted-loader.cjs"))
   });
 
   core.setOutput("cid", result.scriptIpfs);

@@ -1,3 +1,4 @@
+import { parseEncryptedCodeDescriptor } from "@proof-computer/liskov-runtime/encrypted-code";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -66,6 +67,9 @@ export async function runArtifactPinAttest(
     buildManifest.diagnostics,
     `build manifest ${inputs.buildManifestPath}.diagnostics`
   );
+  const encryptedCode = buildManifest.encryptedCode === undefined ? undefined
+    : parseEncryptedCodeDescriptor(buildManifest.encryptedCode);
+  const artifact = buildManifest.artifact as JsonRecord | undefined;
   const targets = await resolveArtifactPinTargets(inputs, dependencies.repositoryRoot);
   const preparedTargets = await Promise.all(targets.map(async (target) => {
     const manifestFile = resolveWithin(
@@ -79,7 +83,7 @@ export async function runArtifactPinAttest(
     );
     return {
       target,
-      bindings: artifactPinBindings(authoredManifest, target.applicationId)
+      bindings: artifactPinBindings(authoredManifest, target.applicationId, encryptedCode, artifact?.entrypoint as string | undefined)
     };
   }));
   const token = await dependencies.getIdToken(inputs.audience);
@@ -93,7 +97,8 @@ export async function runArtifactPinAttest(
           applicationId: target.applicationId,
           manifestPath: target.authoredManifestPath,
           scriptCid,
-          bundleDigest: canonicalSha256(bundleDigest)
+          bundleDigest: canonicalSha256(bundleDigest),
+          ...(encryptedCode === undefined ? {} : { encryptedCode })
         }
       : {
           domain: "proof.slipway.github-artifact-pin.v1",

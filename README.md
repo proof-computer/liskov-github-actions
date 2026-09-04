@@ -252,3 +252,48 @@ pnpm check:dist    # build + fail if committed dist drifted (CI runs this)
 
 `actions/*/dist/index.cjs` is **committed** (the node24 Actions runtime has no deps
 installed). Edit `src/`, run `pnpm build`, commit both.
+
+## Encrypted JavaScript delivery (8ho7 release candidate)
+
+`encryption-mode: aes-256-gcm-payload-v1` packages a public bootstrap and an
+AES-256-GCM encrypted, self-contained CommonJS payload. The payload exports
+`async start(runtime)` and uses the handle supplied by the bootstrap. It must
+not start another runtime. The default `none` path is unchanged. The historical
+V4 `aes256_gcm` whole-bundle requirement remains a different, unsupported format.
+
+```yaml
+jobs:
+  artifact:
+    uses: proof-computer/liskov-github-actions/.github/workflows/acurast-app.yml@v1
+    with:
+      app-id: encrypted-worker
+      authored-manifest-path: .liskov/encrypted-worker.json
+      entrypoint: app.cjs
+      encryption-mode: aes-256-gcm-payload-v1
+      encryption-secret-id: application-code-key
+    secrets:
+      LISKOV_CODE_ENCRYPTION_KEY: ${{ secrets.LISKOV_CODE_ENCRYPTION_KEY }}
+```
+
+This path requires a V5 `release.mode: source`, Node.js, the same authored
+entrypoint file, and a required `configuration.secrets` declaration for
+`application-code-key` with destination
+`{ "kind": "environment", "name": "LISKOV_CODE_KEY" }`. Supply canonical standard
+base64 encoding of a random 32-byte key in the GitHub secret, and install that
+same value through the existing managed Lockbox secret path. The workflow does
+not generate, upload or rotate customer secrets, publish policy, or authorize
+spend. It refuses extra files, prepared archives and reused CIDs in encrypted
+mode, so those inputs cannot quietly publish plaintext or reuse a nonce.
+
+The action embeds the immutable runtime SDK commit recorded in `package.json`
+and commits the built public loader beside its action bundle. Only the loader,
+public descriptor, ciphertext and Acurast manifest enter the ZIP. OIDC evidence
+binds the ZIP digest and `encryptedCode` metadata; payload digests are separate
+from the ZIP digest. The runtime requires the key to have been installed by an
+authenticated Lockbox grant and verifies both digests and the GCM tag before
+loading a local file. The fixed AESGCM vector is shared with Rust and the SDK.
+
+The customer availability claim remains gated on 8ho7's deployed metadata
+validator, released workflow and production canary. Do not infer Cargo image
+confidentiality, PROOF operator blindness, or zero-knowledge custody from this
+loader. A private repository alone does not protect ordinary `none` artifacts.
