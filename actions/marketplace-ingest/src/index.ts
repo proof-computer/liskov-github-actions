@@ -8,7 +8,10 @@
 
 import * as core from "@actions/core";
 
-const DEFAULT_URL = "https://liskov.proof.computer/api/marketplace/ingest";
+// The control plane's hostname. The flat apex `liskov.proof.computer` was
+// withdrawn by BKLG-20260822-84f5 (its Cloudflare record was removed), so a
+// caller falling back to it got `fetch failed` rather than an HTTP error.
+const DEFAULT_URL = "https://api.liskov.proof.computer/api/marketplace/ingest";
 
 async function run(): Promise<void> {
   const ingestUrl = core.getInput("ingest-url") || process.env.LISKOV_MARKETPLACE_INGEST_URL || DEFAULT_URL;

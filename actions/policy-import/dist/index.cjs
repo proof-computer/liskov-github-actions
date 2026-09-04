@@ -19897,7 +19897,7 @@ var import_promises = require("node:fs/promises");
 var core = __toESM(require_core(), 1);
 
 // actions/policy-import/src/url.ts
-var DEFAULT_LISKOV_URL = "https://liskov.proof.computer";
+var DEFAULT_LISKOV_URL = "https://api.liskov.proof.computer";
 function resolvePolicyImportUrl(input) {
   const applicationId = encodeURIComponent(input.applicationId);
   const explicitImportUrl = input.importUrl?.trim();

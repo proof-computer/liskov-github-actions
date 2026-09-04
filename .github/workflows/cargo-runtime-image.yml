@@ -62,7 +62,7 @@ on:
       liskov-url:
         required: false
         type: string
-        default: "https://liskov.proof.computer"
+        default: "https://api.liskov.proof.computer"
       audience:
         required: false
         type: string

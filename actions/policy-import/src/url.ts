@@ -1,4 +1,7 @@
-const DEFAULT_LISKOV_URL = "https://liskov.proof.computer";
+// The control plane's hostname. The flat apex `liskov.proof.computer` was
+// withdrawn by BKLG-20260822-84f5 (its Cloudflare record was removed), so a
+// caller falling back to it got `fetch failed` rather than an HTTP error.
+const DEFAULT_LISKOV_URL = "https://api.liskov.proof.computer";
 
 export interface PolicyImportUrlInput {
   applicationId: string;

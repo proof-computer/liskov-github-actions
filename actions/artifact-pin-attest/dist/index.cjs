@@ -20320,7 +20320,7 @@ function redact(value) {
 }
 
 // actions/artifact-pin-attest/src/index.ts
-var DEFAULT_URL = "https://liskov.proof.computer/api/applications/{applicationId}/artifact-pins/github";
+var DEFAULT_URL = "https://api.liskov.proof.computer/api/applications/{applicationId}/artifact-pins/github";
 async function run() {
   const applicationId = optionalInput("application-id");
   const buildManifestPath = core.getInput("build-manifest-path", { required: true });
