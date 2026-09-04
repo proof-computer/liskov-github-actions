@@ -11,7 +11,10 @@ const OUTPUTS = [
   "artifact-version-id",
   "artifact-version-ids",
   "attestation-results",
-  "target-count"
+  "target-count",
+  // ADR-0106: the git-tree digest of the offering subtree, which its Marketplace
+  // descriptor must declare as sourceAssurance.sourceDigest.
+  "source-digest"
 ];
 
 test("Acurast reusable workflow preserves defaults and wires prepared multi-target artifacts", async () => {
