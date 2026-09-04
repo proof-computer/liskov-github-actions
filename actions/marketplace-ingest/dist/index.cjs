@@ -19739,10 +19739,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error;
-    function warning(message, properties = {}) {
+    function warning2(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning;
+    exports2.warning = warning2;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
@@ -19834,7 +19834,19 @@ async function run() {
   if (!response.ok) throw new Error(`Marketplace ingest failed: ${response.status} ${responseText}`);
   core.info(`Marketplace ingest ok: ${process.env.GITHUB_REPOSITORY}@${(process.env.GITHUB_SHA || "").slice(0, 8)}`);
   try {
-    core.setOutput("result", JSON.stringify(JSON.parse(responseText)));
+    const result = JSON.parse(responseText);
+    const reconciled = [
+      `listed=${result.listed ?? "?"}`,
+      `delisted=${result.delisted ?? "?"}`,
+      `sourceAssuranceEnforced=${result.sourceAssuranceEnforced ?? "?"}`
+    ].join(" ");
+    core.info(`Reconciled: ${reconciled}`);
+    const skipped = Array.isArray(result.skipped) ? result.skipped : [];
+    if (skipped.length === 0) core.info("Skipped: none");
+    for (const entry of skipped) {
+      core.warning(`Skipped ${entry.entryId ?? "?"}: ${entry.reason ?? "?"}`);
+    }
+    core.setOutput("result", JSON.stringify(result));
   } catch {
   }
 }

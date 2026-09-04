@@ -35,7 +35,25 @@ async function run(): Promise<void> {
 
   core.info(`Marketplace ingest ok: ${process.env.GITHUB_REPOSITORY}@${(process.env.GITHUB_SHA || "").slice(0, 8)}`);
   try {
-    core.setOutput("result", JSON.stringify(JSON.parse(responseText)));
+    const result = JSON.parse(responseText);
+    // The reconcile summary is the only place an operator learns that an entry
+    // was skipped and why. Logging just "ok" hid every refusal reason behind an
+    // authenticated console read, so a fail-closed catalog looked identical to a
+    // healthy one from CI.
+    const reconciled = [
+      `listed=${result.listed ?? "?"}`,
+      `delisted=${result.delisted ?? "?"}`,
+      `sourceAssuranceEnforced=${result.sourceAssuranceEnforced ?? "?"}`
+    ].join(" ");
+    core.info(`Reconciled: ${reconciled}`);
+    const skipped: Array<{ entryId?: string; reason?: string }> = Array.isArray(result.skipped)
+      ? result.skipped
+      : [];
+    if (skipped.length === 0) core.info("Skipped: none");
+    for (const entry of skipped) {
+      core.warning(`Skipped ${entry.entryId ?? "?"}: ${entry.reason ?? "?"}`);
+    }
+    core.setOutput("result", JSON.stringify(result));
   } catch {
     /* non-JSON response — ignore */
   }
