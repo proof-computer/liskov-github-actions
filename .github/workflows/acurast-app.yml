@@ -35,6 +35,9 @@ on:
       target-count:
         description: "Number of successfully attested targets."
         value: ${{ jobs.build-pin-attest.outputs.target-count }}
+      source-digest:
+        description: "ADR-0106 git-tree digest of the working-directory subtree at this commit."
+        value: ${{ jobs.build-pin-attest.outputs.source-digest }}
     inputs:
       app-id:
         description: "Liskov Application id (zip/manifest name + artifact-pin target)."
@@ -60,6 +63,11 @@ on:
         required: false
         type: string
         default: ""
+      source-assurance:
+        description: "Regenerate and verify the CycloneDX SBOM and print the ADR-0106 source digest for the Marketplace descriptor."
+        required: false
+        type: boolean
+        default: false
       prepare-command:
         description: "Optional caller-owned bash command run after the normal build/smoke step in working-directory."
         required: false
@@ -140,6 +148,7 @@ jobs:
       artifact-version-ids: ${{ steps.attest.outputs.artifact-version-ids }}
       attestation-results: ${{ steps.attest.outputs.results-json }}
       target-count: ${{ steps.attest.outputs.target-count }}
+      source-digest: ${{ steps.source-assurance.outputs.source-digest }}
     steps:
       - uses: actions/checkout@v4
 
@@ -174,6 +183,13 @@ jobs:
           pnpm test
           pnpm build
           if [ "${{ inputs.smoke }}" = "true" ]; then pnpm smoke:bundle; fi
+
+      - name: Source assurance (SBOM + source digest)
+        id: source-assurance
+        if: ${{ inputs.source-assurance }}
+        uses: proof-computer/liskov-github-actions/actions/source-assurance@v1
+        with:
+          working-directory: ${{ inputs.working-directory }}
 
       - name: Prepare caller artifact
         if: ${{ inputs.prepare-command != '' }}

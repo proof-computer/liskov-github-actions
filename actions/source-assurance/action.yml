@@ -1,0 +1,47 @@
+name: "Liskov Marketplace source assurance"
+description: "Regenerate and verify the CycloneDX SBOM for an offering, and emit the ADR-0106 git-tree source digest its Marketplace descriptor must declare."
+inputs:
+  working-directory:
+    description: "The offering's source directory — the exact subtree the Marketplace descriptor's source.path names."
+    required: false
+    default: "."
+  sbom-path:
+    description: "SBOM filename, relative to working-directory. Must match sourceAssurance.sbomRef."
+    required: false
+    default: "sbom.cdx.json"
+outputs:
+  source-digest:
+    description: "git-tree:<sha> of the working-directory subtree at HEAD — the value sourceAssurance.sourceDigest must carry."
+    value: ${{ steps.assure.outputs.source-digest }}
+runs:
+  using: composite
+  steps:
+    # ADR-0106 requires a public Marketplace version to identify its
+    # dependencies and to be addressable at an immutable source digest. Both are
+    # derived from what is committed, so a publisher, this workflow and a
+    # reviewer all compute the same answer without a registry or a network.
+    - id: assure
+      shell: bash
+      env:
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        SBOM_PATH: ${{ inputs.sbom-path }}
+      run: |
+        set -euo pipefail
+        python3 "${GITHUB_ACTION_PATH}/sbom.py" \
+          --directory "${WORKING_DIRECTORY}" --out "${SBOM_PATH}"
+        # The SBOM lives inside the digested snapshot, so a stale committed copy
+        # would mean the declared sourceDigest describes different bytes than
+        # the dependency list a reviewer reads. Fail rather than silently fix.
+        if ! git diff --quiet -- "${WORKING_DIRECTORY}/${SBOM_PATH}"; then
+          echo "::error::${WORKING_DIRECTORY}/${SBOM_PATH} is stale; regenerate and commit it."
+          git --no-pager diff -- "${WORKING_DIRECTORY}/${SBOM_PATH}"
+          exit 1
+        fi
+        digest="git-tree:$(git rev-parse "HEAD:${WORKING_DIRECTORY}")"
+        echo "source-digest=${digest}" >> "$GITHUB_OUTPUT"
+        {
+          echo "### Marketplace source assurance"
+          echo
+          echo "- \`sourceAssurance.sourceDigest\`: \`${digest}\`"
+          echo "- \`sourceAssurance.sbomRef\`: \`${SBOM_PATH}\`"
+        } >> "$GITHUB_STEP_SUMMARY"
