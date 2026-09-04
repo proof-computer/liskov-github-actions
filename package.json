@@ -1,6 +1,6 @@
 {
   "name": "liskov-github-actions",
-  "version": "1.2.7",
+  "version": "1.3.0",
   "private": true,
   "type": "module",
   "description": "Reusable GitHub Actions + workflows for Liskov CI: manifest-bound artifact and runtime-image publication plus marketplace OIDC ingest.",
@@ -10,13 +10,14 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test actions/**/*.test.ts && python3 -m unittest discover -s actions/cargo-runtime-image-build/tests -v && python3 -m unittest discover -s actions/source-assurance/tests -v",
+    "test": "node --import tsx --test 'actions/**/*.test.ts' && python3 -m unittest discover -s actions/cargo-runtime-image-build/tests -v && python3 -m unittest discover -s actions/source-assurance/tests -v",
     "build": "tsx scripts/build-actions.ts",
     "check:dist": "tsx scripts/build-actions.ts && git diff --exit-code -- actions"
   },
   "dependencies": {
     "@actions/core": "^1.11.1",
     "@aws-sdk/client-s3": "^3.1096.0",
+    "@proof-computer/liskov-runtime": "github:proof-computer/liskov-runtime-js#7139e8386745c0ab184b27de42088d9e605fb6c6",
     "adm-zip": "^0.5.17"
   },
   "devDependencies": {
@@ -29,7 +30,8 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
-      "esbuild"
+      "esbuild",
+      "@proof-computer/liskov-runtime"
     ]
   }
 }

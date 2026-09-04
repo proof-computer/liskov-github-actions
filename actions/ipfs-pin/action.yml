@@ -12,6 +12,12 @@ inputs:
     description: "Entrypoint bundle filename inside dist/."
     required: false
     default: "app.cjs"
+  encryption-mode:
+    description: "none or aes-256-gcm-payload-v1 (public bootstrap plus encrypted CommonJS payload)."
+    default: "none"
+  encryption-secret-id:
+    description: "Existing Lockbox secret delivering the code key to LISKOV_CODE_KEY. Key bytes come from LISKOV_CODE_ENCRYPTION_KEY."
+    required: false
   extra-files:
     description: "Additional dist/ files to include in the zip (newline/comma separated), e.g. app.cjs when entrypoint is a stage0 bundle.cjs."
     required: false

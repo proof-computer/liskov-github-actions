@@ -1,8 +1,9 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import AdmZip from "adm-zip";
+import { encryptedCodeZip, ENCRYPTED_CODE_MODE } from "./encrypted-code.js";
 
 import {
   safeRelativeArtifactPath,
@@ -23,12 +24,17 @@ export interface IpfsPinInputs {
   readonly scriptIpfs?: string;
   readonly gatewayUrl?: string;
   readonly manifestName?: string;
+  readonly encryptionMode?: string;
+  readonly encryptionSecretId?: string;
+  readonly encryptionKey?: string;
 }
 
 export interface IpfsPinDependencies {
   readonly fetchImpl: typeof fetch;
   readonly now: () => Date;
   readonly environment: NodeJS.ProcessEnv;
+  readonly encryptedCodeLoader?: Uint8Array;
+  readonly randomBytes?: (size: number) => Uint8Array;
   readonly sleep?: (milliseconds: number) => Promise<void>;
 }
 
@@ -55,9 +61,17 @@ export async function runIpfsPin(
   dependencies: IpfsPinDependencies = DEFAULT_DEPENDENCIES
 ): Promise<IpfsPinResult> {
   const root = path.resolve(inputs.workingDirectory || ".");
-  const artifactBytes = inputs.artifactPath
+  const mode = inputs.encryptionMode ?? "none";
+  if (mode !== "none" && mode !== ENCRYPTED_CODE_MODE) throw new Error("unsupported code encryption mode");
+  if (mode === "none" && (inputs.encryptionKey || inputs.encryptionSecretId)) {
+    throw new Error("code encryption inputs require aes-256-gcm-payload-v1 mode");
+  }
+  const encrypted = mode === ENCRYPTED_CODE_MODE
+    ? await encryptedCodeZip(root, inputs, dependencies.encryptedCodeLoader ?? new Uint8Array(),
+      (dependencies.randomBytes ?? randomBytes)(12)) : undefined;
+  const artifactBytes = encrypted?.bytes ?? (inputs.artifactPath
     ? await readFile(resolveWithin(root, inputs.artifactPath, "artifact-path"))
-    : await generatedZip(root, inputs);
+    : await generatedZip(root, inputs));
   const artifactSha256 = sha256(artifactBytes);
 
   const diagnostics = inputs.metadataPath
@@ -111,6 +125,7 @@ export async function runIpfsPin(
     }
   };
   if (diagnostics) manifest.diagnostics = diagnostics;
+  if (encrypted) manifest.encryptedCode = encrypted.descriptor;
 
   const manifestName = inputs.manifestName?.trim() || `${inputs.appName}-script-manifest.json`;
   const manifestPath = resolveWithin(root, manifestName, "manifest-name");

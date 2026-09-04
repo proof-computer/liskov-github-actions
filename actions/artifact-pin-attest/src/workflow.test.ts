@@ -66,6 +66,11 @@ test("Acurast reusable workflow preserves defaults and wires prepared multi-targ
 
   assert.equal(pin.uses, "proof-computer/liskov-github-actions/actions/ipfs-pin@v1");
   const pinWith = object(pin.with, "pin.with");
+  assert.equal(object(inputs["encryption-mode"], "encryption-mode").default, "none");
+  assert.equal(pinWith["encryption-mode"], "${{ inputs.encryption-mode }}");
+  assert.equal(pinWith["encryption-secret-id"], "${{ inputs.encryption-secret-id }}");
+  assert.equal(object(pin.env, "pin.env").LISKOV_CODE_ENCRYPTION_KEY, "${{ secrets.LISKOV_CODE_ENCRYPTION_KEY }}");
+  assert.equal(object(object(workflowCall.secrets, "secrets").LISKOV_CODE_ENCRYPTION_KEY, "code key").required, false);
   assert.equal(pinWith["artifact-path"], "${{ inputs.artifact-path }}");
   assert.equal(pinWith["metadata-path"], "${{ inputs.artifact-metadata-path }}");
   assert.equal(pinWith["script-ipfs"], "${{ inputs.script-ipfs }}");

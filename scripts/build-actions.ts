@@ -31,3 +31,10 @@ for (const action of JS_ACTIONS) {
   });
   console.log(`built actions/${action}/dist/index.cjs`);
 }
+
+await build({
+  entryPoints: ["actions/ipfs-pin/src/encrypted-loader.ts"],
+  outfile: "actions/ipfs-pin/dist/encrypted-loader.cjs",
+  bundle: true, platform: "node", target: "node22", format: "cjs",
+  minify: false, sourcemap: false, legalComments: "none"
+});

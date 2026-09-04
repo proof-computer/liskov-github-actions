@@ -1,3 +1,4 @@
+import { ENCRYPTED_CODE_KEY_ENV, parseEncryptedCodeDescriptor, type EncryptedCodeDescriptor } from "@proof-computer/liskov-runtime/encrypted-code";
 import { requireValidPolicyManifest } from "../../shared/src/policy-contract.js";
 
 export interface V4ArtifactPinBindings {
@@ -15,7 +16,9 @@ export type ArtifactPinBindings = V4ArtifactPinBindings | RegisteredSourceArtifa
 
 export function artifactPinBindings(
   manifest: Record<string, unknown>,
-  applicationId: string
+  applicationId: string,
+  encryptedCode?: EncryptedCodeDescriptor,
+  entrypoint?: string
 ): ArtifactPinBindings {
   const result = requireValidPolicyManifest(manifest);
   const document = result.document!;
@@ -28,8 +31,25 @@ export function artifactPinBindings(
     if (runtime.kind !== "javascript") {
       throw new Error("the registered IPFS artifact workflow currently requires runtime.kind javascript");
     }
+    if (encryptedCode !== undefined) {
+      parseEncryptedCodeDescriptor(encryptedCode);
+      if ((runtime.engine !== undefined && runtime.engine !== "nodejs")
+        || recordField(runtime, "entrypoint").file !== entrypoint) {
+        throw new Error("encrypted code requires the exact Node.js bootstrap entrypoint");
+      }
+      const configuration = recordField(document, "configuration");
+      const secrets = configuration.secrets;
+      if (!Array.isArray(secrets) || !secrets.some((secret: Record<string, unknown>) => {
+        const destination = recordField(secret, "destination");
+        return secret.secretId === encryptedCode.keySecretId && secret.required !== false
+          && destination.kind === "environment" && destination.name === ENCRYPTED_CODE_KEY_ENV;
+      })) {
+        throw new Error("encrypted code requires its Lockbox key secret at LISKOV_CODE_KEY");
+      }
+    }
     return { kind: "registered-source" };
   }
+  if (encryptedCode !== undefined) throw new Error("encrypted payloads require a V5 source release");
   if (release.mode !== "build") {
     throw new Error("artifact pins require an authored build release");
   }
