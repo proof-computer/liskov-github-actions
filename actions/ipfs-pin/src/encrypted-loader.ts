@@ -6,7 +6,10 @@ import { startEncryptedApplication } from "@proof-computer/liskov-runtime/encryp
 
 async function run(): Promise<void> {
   const descriptor = JSON.parse(await readFile(path.join(__dirname, "encrypted-code.json"), "utf8"));
-  const runtime = await bootstrapSlipwayRuntime({ bootstrap: { mode: "signed" }, secrets: { mode: "required" },
+  // Acurast grants filesystem access to the job directory, not the device
+  // HOME or a global /tmp. Keep runtime files inside this immutable bundle
+  // directory; the SDK creates fresh private module directories below it.
+  const runtime = await bootstrapSlipwayRuntime({ home: path.join(__dirname, ".liskov"), bootstrap: { mode: "signed" }, secrets: { mode: "required" },
     component: "encrypted-application" });
   try {
     await startEncryptedApplication({ runtime, descriptor, ciphertextPath: path.join(__dirname, "encrypted-code.bin") });
