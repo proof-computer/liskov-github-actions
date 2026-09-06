@@ -253,7 +253,7 @@ pnpm check:dist    # build + fail if committed dist drifted (CI runs this)
 `actions/*/dist/index.cjs` is **committed** (the node24 Actions runtime has no deps
 installed). Edit `src/`, run `pnpm build`, commit both.
 
-## Encrypted JavaScript delivery (8ho7 release candidate)
+## Encrypted JavaScript delivery
 
 `encryption-mode: aes-256-gcm-payload-v1` packages a public bootstrap and an
 AES-256-GCM encrypted, self-contained CommonJS payload. The payload exports
@@ -304,7 +304,9 @@ from the ZIP digest. The runtime requires the key to have been installed by an
 authenticated Lockbox grant and verifies both digests and the GCM tag before
 loading a local file. The fixed AESGCM vector is shared with Rust and the SDK.
 
-The customer availability claim remains gated on 8ho7's deployed metadata
-validator, released workflow and production canary. Do not infer Cargo image
-confidentiality, PROOF operator blindness, or zero-knowledge custody from this
+The released path completed production acceptance on 6 September 2026: job
+`160393` verified the managed grant, loaded the encrypted payload and emitted
+signed application completion. The public guide and capability matrix retain
+the separate registered V5 customer-release gate. Cargo image confidentiality,
+PROOF operator blindness and zero-knowledge custody are not established by this
 loader. A private repository alone does not protect ordinary `none` artifacts.
