@@ -285,6 +285,13 @@ not generate, upload or rotate customer secrets, publish policy, or authorize
 spend. It refuses extra files, prepared archives and reused CIDs in encrypted
 mode, so those inputs cannot quietly publish plaintext or reuse a nonce.
 
+The runtime needs a processor with a working P-256 grant-response key. The
+Android implementation requires Android 12 or later, and a `DataEncryption`
+advertisement alone does not establish support. Select compatible candidates
+in the Application manifest. Follow the [encrypted JavaScript guide](https://docs.proof.computer/liskov/build/encrypted-javascript)
+to publish paused, confirm the managed key save, then resume within the reviewed
+spend cap and verify signed loader and application outcomes.
+
 The action embeds the immutable runtime SDK commit recorded in `package.json`
 and commits the built public loader beside its action bundle. Only the loader,
 public descriptor, ciphertext and Acurast manifest enter the ZIP. OIDC evidence
