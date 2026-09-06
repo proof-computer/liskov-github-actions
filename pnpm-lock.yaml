@@ -15,8 +15,8 @@ importers:
         specifier: ^3.1096.0
         version: 3.1096.0
       '@proof-computer/liskov-runtime':
-        specifier: github:proof-computer/liskov-runtime-js#7139e8386745c0ab184b27de42088d9e605fb6c6
-        version: https://codeload.github.com/proof-computer/liskov-runtime-js/tar.gz/7139e8386745c0ab184b27de42088d9e605fb6c6
+        specifier: github:proof-computer/liskov-runtime-js#89729b2a59d817a43fbae786bdcdcd4fce900fc3
+        version: https://codeload.github.com/proof-computer/liskov-runtime-js/tar.gz/89729b2a59d817a43fbae786bdcdcd4fce900fc3
       adm-zip:
         specifier: ^0.5.17
         version: 0.5.17
@@ -286,9 +286,9 @@ packages:
     resolution: {integrity: sha512-vBZP4NlzfOlerQTnba4aqZoMhE/a9HY7HRqoOPaETQcSQuWEIyZMHGfVu6w9wGtGK5fED5qRs2DteVCjOH60sA==}
     engines: {node: '>=14'}
 
-  '@proof-computer/liskov-runtime@https://codeload.github.com/proof-computer/liskov-runtime-js/tar.gz/7139e8386745c0ab184b27de42088d9e605fb6c6':
-    resolution: {tarball: https://codeload.github.com/proof-computer/liskov-runtime-js/tar.gz/7139e8386745c0ab184b27de42088d9e605fb6c6}
-    version: 0.3.29
+  '@proof-computer/liskov-runtime@https://codeload.github.com/proof-computer/liskov-runtime-js/tar.gz/89729b2a59d817a43fbae786bdcdcd4fce900fc3':
+    resolution: {tarball: https://codeload.github.com/proof-computer/liskov-runtime-js/tar.gz/89729b2a59d817a43fbae786bdcdcd4fce900fc3}
+    version: 0.3.30
     engines: {node: '>=22'}
 
   '@smithy/core@3.31.0':
@@ -630,7 +630,7 @@ snapshots:
 
   '@fastify/busboy@2.1.1': {}
 
-  '@proof-computer/liskov-runtime@https://codeload.github.com/proof-computer/liskov-runtime-js/tar.gz/7139e8386745c0ab184b27de42088d9e605fb6c6': {}
+  '@proof-computer/liskov-runtime@https://codeload.github.com/proof-computer/liskov-runtime-js/tar.gz/89729b2a59d817a43fbae786bdcdcd4fce900fc3': {}
 
   '@smithy/core@3.31.0':
     dependencies:

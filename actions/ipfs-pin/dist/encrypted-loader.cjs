@@ -26,10 +26,10 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 var import_promises3 = require("node:fs/promises");
 var import_node_path4 = __toESM(require("node:path"), 1);
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_64f35f1ea6fb4925e28f90dfa85f6ad3/node_modules/@proof-computer/liskov-runtime/dist/acurast.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/acurast.js
 var import_node_buffer2 = require("node:buffer");
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_64f35f1ea6fb4925e28f90dfa85f6ad3/node_modules/@proof-computer/liskov-runtime/dist/env.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/env.js
 function resolveRuntimeStd(std) {
   return std ?? globalThis._STD_;
 }
@@ -89,7 +89,7 @@ function optionalNonNegativeIntegerEnv(name, options = {}) {
   return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : void 0;
 }
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_64f35f1ea6fb4925e28f90dfa85f6ad3/node_modules/@proof-computer/liskov-runtime/dist/shared.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/shared.js
 var import_node_buffer = require("node:buffer");
 var import_node_crypto = require("node:crypto");
 function canonicalJson(value) {
@@ -251,7 +251,7 @@ function validEnvName(name) {
   return value;
 }
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_64f35f1ea6fb4925e28f90dfa85f6ad3/node_modules/@proof-computer/liskov-runtime/dist/acurast.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/acurast.js
 var DEFAULT_JOB_ID_ENV_NAMES = [
   "ACURAST_JOB_ID",
   "PROOF_ACURAST_JOB_ID",
@@ -375,11 +375,11 @@ function safeCall(fn) {
   }
 }
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_64f35f1ea6fb4925e28f90dfa85f6ad3/node_modules/@proof-computer/liskov-runtime/dist/blackbox-logger.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/blackbox-logger.js
 var import_node_buffer3 = require("node:buffer");
 var import_node_crypto3 = require("node:crypto");
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_64f35f1ea6fb4925e28f90dfa85f6ad3/node_modules/@proof-computer/liskov-runtime/dist/home.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/home.js
 var import_node_path = __toESM(require("node:path"), 1);
 var SLIPWAY_HOME_ENV_NAME = "SLIPWAY_HOME";
 var DEFAULT_SLIPWAY_HOME_DIRNAME = ".slipway";
@@ -407,7 +407,7 @@ function firstNonEmpty(...values) {
   return values.find((value) => typeof value === "string" && value.length > 0);
 }
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_64f35f1ea6fb4925e28f90dfa85f6ad3/node_modules/@proof-computer/liskov-runtime/dist/blackbox-spool-internal.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/blackbox-spool-internal.js
 var testModules;
 async function loadDiskSpoolModules() {
   if (testModules)
@@ -416,7 +416,7 @@ async function loadDiskSpoolModules() {
   return { fs, path: path5.default ?? path5 };
 }
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_64f35f1ea6fb4925e28f90dfa85f6ad3/node_modules/@proof-computer/liskov-runtime/dist/proof-log-crypto.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/proof-log-crypto.js
 var import_node_crypto2 = require("node:crypto");
 function encryptProofLogRecord(key, value) {
   const iv = (0, import_node_crypto2.randomBytes)(12);
@@ -447,7 +447,7 @@ function base64UrlDecode(value) {
   return Buffer.from(value, "base64url");
 }
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_64f35f1ea6fb4925e28f90dfa85f6ad3/node_modules/@proof-computer/liskov-runtime/dist/blackbox-logger.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/blackbox-logger.js
 var BLACKBOX_LOG_ENV_NAMES = [
   "BLACKBOX_LOG_CONFIG",
   "BLACKBOX_SINK_ID",
@@ -1515,7 +1515,7 @@ function withoutUndefined(value) {
   return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== void 0));
 }
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_64f35f1ea6fb4925e28f90dfa85f6ad3/node_modules/@proof-computer/liskov-runtime/dist/bootstrap.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/bootstrap.js
 var import_node_buffer4 = require("node:buffer");
 var LISKOV_RUNTIME_BOOTSTRAP_REQUEST_DOMAIN_V1 = "proof.liskov.runtime-bootstrap-request.v1";
 var LISKOV_RUNTIME_BOOTSTRAP_REQUEST_DOMAIN_V2 = "proof.liskov.runtime-bootstrap-request.v2";
@@ -1908,7 +1908,7 @@ function secretBootstrapResponseDomain(value) {
   throw new Error("Liskov secret bootstrap response has an unsupported domain");
 }
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_64f35f1ea6fb4925e28f90dfa85f6ad3/node_modules/@proof-computer/liskov-runtime/dist/diagnostics.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/diagnostics.js
 var SLIPWAY_RUNTIME_DIAGNOSTIC_DOMAIN = "proof.slipway.runtime-diagnostic.v1";
 var LISKOV_RUNTIME_DIAGNOSTIC_DOMAIN_V2 = "proof.liskov.runtime-diagnostic.v2";
 var LISKOV_RUNTIME_DIAGNOSTIC_DOMAIN_V3 = "proof.liskov.runtime-diagnostic.v3";
@@ -2434,7 +2434,7 @@ function diagnosticErrorMessage(error) {
   return safeErrorMessage(error);
 }
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_64f35f1ea6fb4925e28f90dfa85f6ad3/node_modules/@proof-computer/liskov-runtime/dist/env-names.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/env-names.js
 var LISKOV_BOOTSTRAP_ENV = "LISKOV_BOOTSTRAP";
 var LEGACY_LISKOV_BOOTSTRAP_ENV = "PROOF_SLIPWAY_BOOTSTRAP";
 var LISKOV_BOOTSTRAP_ENV_NAMES = [
@@ -2448,7 +2448,7 @@ var LOCKBOX_BOOTSTRAP_ENV_NAMES = [
   LEGACY_LOCKBOX_BOOTSTRAP_ENV
 ];
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_64f35f1ea6fb4925e28f90dfa85f6ad3/node_modules/@proof-computer/liskov-runtime/dist/lockbox.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/lockbox.js
 var import_node_buffer5 = require("node:buffer");
 var import_promises = require("node:fs/promises");
 var import_node_path2 = __toESM(require("node:path"), 1);
@@ -2977,7 +2977,7 @@ function lockboxEncryptedPayloadDomain(value) {
   throw new Error("Lockbox encrypted payload has an unsupported domain");
 }
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_64f35f1ea6fb4925e28f90dfa85f6ad3/node_modules/@proof-computer/liskov-runtime/dist/runtime-env.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/runtime-env.js
 var import_node_buffer6 = require("node:buffer");
 var SLIPWAY_RUNTIME_ENV_REQUEST_DOMAIN_V1 = "proof.slipway.runtime-env-request.v1";
 var SLIPWAY_RUNTIME_ENV_REQUEST_DOMAIN_V2 = "proof.liskov.runtime-env-request.v2";
@@ -3278,7 +3278,7 @@ async function emit2(diagnostics, event) {
   await Promise.resolve(diagnostics?.(event));
 }
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_64f35f1ea6fb4925e28f90dfa85f6ad3/node_modules/@proof-computer/liskov-runtime/dist/index.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/index.js
 var SlipwayRuntimeNotReadyError = class extends Error {
   status;
   constructor(status) {
@@ -4390,9 +4390,10 @@ function stringifyRuntimeValue3(value) {
   return JSON.stringify(value);
 }
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_64f35f1ea6fb4925e28f90dfa85f6ad3/node_modules/@proof-computer/liskov-runtime/dist/encrypted-code.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/encrypted-code.js
 var import_node_crypto4 = require("node:crypto");
 var import_promises2 = require("node:fs/promises");
+var import_node_module = require("node:module");
 var import_node_path3 = __toESM(require("node:path"), 1);
 var import_node_url = require("node:url");
 var ENCRYPTED_CODE_DOMAIN = "proof.liskov.encrypted-code.v1";
@@ -4444,27 +4445,41 @@ function decryptEncryptedCode(ciphertext, key, metadata) {
 async function startEncryptedApplication(input) {
   const { runtime } = input;
   let directory;
+  let filename;
+  let loadModule;
   let plaintext;
+  let phase = "descriptor";
   try {
     const descriptor = parseEncryptedCodeDescriptor(input.descriptor);
+    phase = "readiness";
     await runtime.whenReady();
+    phase = "key_release";
     const release = runtime.lockbox;
     const status = runtime.status();
     const delivered = release?.installed.env.filter((secret) => secret.secretId === descriptor.keySecretId && secret.name === ENCRYPTED_CODE_KEY_ENV);
     if (release === void 0 || status.applicationUid === void 0 || release.response.applicationUid !== status.applicationUid || release.response.deploymentId !== status.deploymentId || delivered?.length !== 1 || !release.response.secretVersions.some((secret) => secret.secretId === delivered[0].secretId && secret.versionId === delivered[0].versionId && secret.target === "env" && secret.name === ENCRYPTED_CODE_KEY_ENV)) {
       throw new Error("encrypted_code_key_release_required");
     }
+    phase = "ciphertext";
     const ciphertext = await (0, import_promises2.readFile)(input.ciphertextPath);
+    phase = "verification";
     plaintext = decryptEncryptedCode(ciphertext, runtime.env.require(ENCRYPTED_CODE_KEY_ENV), descriptor);
+    phase = "directory";
+    await (0, import_promises2.mkdir)(runtime.home, { recursive: true, mode: 448 });
     directory = await (0, import_promises2.mkdtemp)(import_node_path3.default.join(runtime.home, "encrypted-code-"));
-    const filename = import_node_path3.default.join(directory, "application.cjs");
+    filename = import_node_path3.default.resolve(directory, "application.cjs");
+    phase = "module_write";
     await (0, import_promises2.writeFile)(filename, plaintext, { mode: 384, flag: "wx" });
     plaintext.fill(0);
     plaintext = void 0;
-    const module2 = await import((0, import_node_url.pathToFileURL)(filename).href);
+    phase = "module_load";
+    loadModule = (0, import_node_module.createRequire)((0, import_node_url.pathToFileURL)(filename));
+    const module2 = loadModule(filename);
+    phase = "entrypoint";
     const start = module2.start ?? module2.default?.start;
     if (typeof start !== "function")
       throw new Error("encrypted_code_start_missing");
+    phase = "verified_event";
     await runtime.diagnostics.report({
       stage: "application.encrypted_code.loaded",
       status: "succeeded",
@@ -4474,16 +4489,26 @@ async function startEncryptedApplication(input) {
         ciphertextDigest: descriptor.ciphertextDigest
       }
     });
+    phase = "application_start";
     await start(runtime);
   } catch {
+    await runtime.diagnostics.report({
+      stage: `application.encrypted_code.refused.${phase}`,
+      status: "failed",
+      code: "encrypted_code_failure_detail",
+      attrs: { phase }
+    });
     await runtime.diagnostics.fatal({
       kind: "application_start",
       code: "encrypted_code_start_failed",
-      message: "Encrypted application could not be verified and started"
+      message: `Encrypted application could not be verified and started (${phase})`,
+      attrs: { phase }
     });
     throw new Error("encrypted_code_start_failed");
   } finally {
     plaintext?.fill(0);
+    if (filename !== void 0 && loadModule !== void 0)
+      delete loadModule.cache[filename];
     if (directory !== void 0)
       await (0, import_promises2.rm)(directory, { recursive: true, force: true });
   }

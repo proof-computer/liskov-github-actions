@@ -19896,7 +19896,7 @@ var require_policy_client = __commonJS({
 var import_node_path3 = __toESM(require("node:path"), 1);
 var core = __toESM(require_core(), 1);
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_64f35f1ea6fb4925e28f90dfa85f6ad3/node_modules/@proof-computer/liskov-runtime/dist/encrypted-code.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/encrypted-code.js
 var ENCRYPTED_CODE_DOMAIN = "proof.liskov.encrypted-code.v1";
 var ENCRYPTED_CODE_KEY_ENV = "LISKOV_CODE_KEY";
 var MAX_ENCRYPTED_CODE_BYTES = 16 * 1024 * 1024;

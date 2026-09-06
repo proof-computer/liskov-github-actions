@@ -22491,7 +22491,7 @@ var import_promises = require("node:fs/promises");
 var import_node_path = __toESM(require("node:path"), 1);
 var import_adm_zip = __toESM(require_adm_zip(), 1);
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_64f35f1ea6fb4925e28f90dfa85f6ad3/node_modules/@proof-computer/liskov-runtime/dist/encrypted-code.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/encrypted-code.js
 var ENCRYPTED_CODE_DOMAIN = "proof.liskov.encrypted-code.v1";
 var MAX_ENCRYPTED_CODE_BYTES = 16 * 1024 * 1024;
 function parseEncryptedCodeDescriptor(value) {
