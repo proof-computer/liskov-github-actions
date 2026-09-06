@@ -292,8 +292,10 @@ in the Application manifest. Follow the [encrypted JavaScript guide](https://doc
 to publish paused, confirm the managed key save, then resume within the reviewed
 spend cap and verify signed loader and application outcomes.
 
-Actions 1.3.1 embeds runtime SDK 0.3.30, including fresh-home creation,
-CommonJS module loading and bounded failure-phase diagnostics.
+Actions 1.3.2 embeds runtime SDK 0.3.30, including fresh-home creation,
+CommonJS module loading and bounded failure-phase diagnostics. The public
+bootstrap locates its runtime home inside the job bundle directory, where
+Acurast grants filesystem access; it does not depend on device HOME or /tmp.
 The action embeds the immutable runtime SDK commit recorded in `package.json`
 and commits the built public loader beside its action bundle. Only the loader,
 public descriptor, ciphertext and Acurast manifest enter the ZIP. OIDC evidence

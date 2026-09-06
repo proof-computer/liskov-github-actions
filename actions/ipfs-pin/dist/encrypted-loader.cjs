@@ -4528,6 +4528,7 @@ function decodeCanonicalBase64(value, size) {
 async function run() {
   const descriptor = JSON.parse(await (0, import_promises3.readFile)(import_node_path4.default.join(__dirname, "encrypted-code.json"), "utf8"));
   const runtime = await bootstrapSlipwayRuntime({
+    home: import_node_path4.default.join(__dirname, ".liskov"),
     bootstrap: { mode: "signed" },
     secrets: { mode: "required" },
     component: "encrypted-application"
