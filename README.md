@@ -310,3 +310,19 @@ signed application completion. The public guide and capability matrix retain
 the separate registered V5 customer-release gate. Cargo image confidentiality,
 PROOF operator blindness and zero-knowledge custody are not established by this
 loader. A private repository alone does not protect ordinary `none` artifacts.
+
+## License
+
+This repository is licensed under the Functional Source License, Version 1.1,
+with Apache-2.0 as the future license (SPDX `FSL-1.1-Apache-2.0`); see
+[`LICENSE`](LICENSE). The licensor is Moose Labs Ltd. Each version becomes
+available under Apache-2.0 two years after it is made available.
+
+You may use, copy, modify and redistribute these actions and reusable
+workflows for any purpose other than a Competing Use as `LICENSE` defines it.
+Using them from any customer workflow, including by
+`uses: proof-computer/liskov-github-actions/...`, to build, test and publish
+your own work is not a Competing Use.
+
+The change is forward-only: release tags cut before this license was added keep
+the terms they shipped with.
