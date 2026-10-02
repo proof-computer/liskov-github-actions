@@ -17,8 +17,8 @@ async function run(): Promise<void> {
   const entrypoint = core.getInput("entrypoint") || "app.cjs";
   const extraFiles = splitList(core.getInput("extra-files"));
   const restartPolicy = core.getInput("restart-policy") || "onFailure";
-  const endpoint = (core.getInput("ipfs-endpoint") || process.env.ACURAST_IPFS_URL || DEFAULT_IPFS_ENDPOINT).replace(/\/+$/u, "");
-  const apiKey = (process.env.ACURAST_IPFS_API_KEY || "").trim();
+  const endpoint = (core.getInput("ipfs-endpoint") || DEFAULT_IPFS_ENDPOINT).replace(/\/+$/u, "");
+  const apiKey = (process.env.LISKOV_IPFS_API_KEY || "").trim();
   const encryptionMode = core.getInput("encryption-mode") || "none";
   const encryptionKey = process.env.LISKOV_CODE_ENCRYPTION_KEY;
   if (encryptionKey) core.setSecret(encryptionKey);

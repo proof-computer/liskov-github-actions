@@ -5,11 +5,15 @@ name: Acurast app — build, pin, attest
 #
 #   jobs:
 #     artifact:
-#       uses: proof-computer/liskov-github-actions/.github/workflows/acurast-app.yml@v1
+#       uses: proof-computer/liskov-github-actions/.github/workflows/acurast-app.yml@v2
 #       with: { app-id: uptime-prober, working-directory: uptime-prober }
+#
+# The default no-spend IPFS proxy needs no secret. A caller pinning to its own
+# endpoint commits it as `ipfs-endpoint` and passes only the credential:
+#
+#       with: { app-id: uptime-prober, ipfs-endpoint: "https://ipfs.example" }
 #       secrets:
-#         ACURAST_IPFS_URL: ${{ secrets.ACURAST_IPFS_URL }}
-#         ACURAST_IPFS_API_KEY: ${{ secrets.ACURAST_IPFS_API_KEY }}
+#         LISKOV_IPFS_API_KEY: ${{ secrets.LISKOV_IPFS_API_KEY }}
 
 on:
   workflow_call:
@@ -101,6 +105,11 @@ on:
         required: false
         type: string
         default: ""
+      ipfs-endpoint:
+        description: "IPFS pinning endpoint; empty uses the default no-spend proxy. Not a secret."
+        required: false
+        type: string
+        default: ""
       ipfs-gateway-url:
         description: "Optional credential-free HTTPS gateway URL for exact byte verification; supports {cid} and retries 4 times with 10s delay."
         required: false
@@ -139,9 +148,8 @@ on:
       LISKOV_CODE_ENCRYPTION_KEY:
         description: "Canonical base64 code key, matching the existing Lockbox secret."
         required: false
-      ACURAST_IPFS_URL:
-        required: false
-      ACURAST_IPFS_API_KEY:
+      LISKOV_IPFS_API_KEY:
+        description: "Bearer key for a custom IPFS endpoint."
         required: false
 
 permissions:
@@ -198,7 +206,7 @@ jobs:
       - name: Source assurance (SBOM + source digest)
         id: source-assurance
         if: ${{ inputs.source-assurance }}
-        uses: proof-computer/liskov-github-actions/actions/source-assurance@v1
+        uses: proof-computer/liskov-github-actions/actions/source-assurance@v2
         with:
           working-directory: ${{ inputs.working-directory }}
 
@@ -212,7 +220,7 @@ jobs:
 
       - name: IPFS pin (no-spend)
         id: pin
-        uses: proof-computer/liskov-github-actions/actions/ipfs-pin@v1
+        uses: proof-computer/liskov-github-actions/actions/ipfs-pin@v2
         with:
           app-name: ${{ inputs.app-id }}
           working-directory: ${{ inputs.working-directory }}
@@ -223,12 +231,12 @@ jobs:
           artifact-path: ${{ inputs.artifact-path }}
           metadata-path: ${{ inputs.artifact-metadata-path }}
           script-ipfs: ${{ inputs.script-ipfs }}
+          ipfs-endpoint: ${{ inputs.ipfs-endpoint }}
           gateway-url: ${{ inputs.ipfs-gateway-url }}
           manifest-name: ${{ inputs.upload-manifest-path }}
         env:
           LISKOV_CODE_ENCRYPTION_KEY: ${{ secrets.LISKOV_CODE_ENCRYPTION_KEY }}
-          ACURAST_IPFS_URL: ${{ secrets.ACURAST_IPFS_URL }}
-          ACURAST_IPFS_API_KEY: ${{ secrets.ACURAST_IPFS_API_KEY }}
+          LISKOV_IPFS_API_KEY: ${{ secrets.LISKOV_IPFS_API_KEY }}
 
       - name: Upload build manifest
         uses: actions/upload-artifact@v4
@@ -241,7 +249,7 @@ jobs:
       - name: Attest artifact pin
         id: attest
         if: ${{ inputs.attest }}
-        uses: proof-computer/liskov-github-actions/actions/artifact-pin-attest@v1
+        uses: proof-computer/liskov-github-actions/actions/artifact-pin-attest@v2
         with:
           application-id: ${{ inputs.artifact-targets-path == '' && inputs.app-id || '' }}
           build-manifest-path: ${{ steps.pin.outputs.manifest-path }}

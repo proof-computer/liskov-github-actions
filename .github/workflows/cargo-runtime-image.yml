@@ -206,7 +206,7 @@ jobs:
 
       - name: Compose first deterministic image
         id: image-one
-        uses: proof-computer/liskov-github-actions/actions/cargo-runtime-image-build@v1
+        uses: proof-computer/liskov-github-actions/actions/cargo-runtime-image-build@v2
         with:
           rootfs-path: ${{ runner.temp }}/base-rootfs.tar.xz
           binary-path: ${{ runner.temp }}/cargo-one/aarch64-unknown-linux-musl/release/${{ inputs.binary-name }}
@@ -215,7 +215,7 @@ jobs:
 
       - name: Compose second deterministic image
         id: image-two
-        uses: proof-computer/liskov-github-actions/actions/cargo-runtime-image-build@v1
+        uses: proof-computer/liskov-github-actions/actions/cargo-runtime-image-build@v2
         with:
           rootfs-path: ${{ runner.temp }}/base-rootfs.tar.xz
           binary-path: ${{ runner.temp }}/cargo-two/aarch64-unknown-linux-musl/release/${{ inputs.binary-name }}
@@ -242,7 +242,7 @@ jobs:
 
       - name: Import exact authored manifest
         id: manifest
-        uses: proof-computer/liskov-github-actions/actions/policy-import@v1
+        uses: proof-computer/liskov-github-actions/actions/policy-import@v2
         with:
           application-id: ${{ inputs.application-id }}
           manifest-path: ${{ inputs.manifest-path }}
@@ -250,7 +250,7 @@ jobs:
 
       - name: Upload and finalize manifest-bound runtime image
         id: upload
-        uses: proof-computer/liskov-github-actions/actions/runtime-image-upload@v1
+        uses: proof-computer/liskov-github-actions/actions/runtime-image-upload@v2
         with:
           application-id: ${{ inputs.application-id }}
           image-path: ${{ runner.temp }}/cargo-runtime-image-one.tar.xz

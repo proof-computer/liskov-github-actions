@@ -34,6 +34,8 @@ test("Acurast reusable workflow preserves defaults and wires prepared multi-targ
     "artifact-metadata-path",
     "artifact-targets-path",
     "script-ipfs",
+    // Not a secret: an empty endpoint selects the action's default no-spend proxy.
+    "ipfs-endpoint",
     "ipfs-gateway-url",
     "upload-manifest-path"
   ]) {
@@ -64,13 +66,23 @@ test("Acurast reusable workflow preserves defaults and wires prepared multi-targ
   assert.equal(prepare["working-directory"], "${{ inputs.working-directory }}");
   assert.match(String(prepare.run), /bash -euo pipefail -c/u);
 
-  assert.equal(pin.uses, "proof-computer/liskov-github-actions/actions/ipfs-pin@v1");
+  assert.equal(pin.uses, "proof-computer/liskov-github-actions/actions/ipfs-pin@v2");
   const pinWith = object(pin.with, "pin.with");
   assert.equal(object(inputs["encryption-mode"], "encryption-mode").default, "none");
   assert.equal(pinWith["encryption-mode"], "${{ inputs.encryption-mode }}");
   assert.equal(pinWith["encryption-secret-id"], "${{ inputs.encryption-secret-id }}");
-  assert.equal(object(pin.env, "pin.env").LISKOV_CODE_ENCRYPTION_KEY, "${{ secrets.LISKOV_CODE_ENCRYPTION_KEY }}");
-  assert.equal(object(object(workflowCall.secrets, "secrets").LISKOV_CODE_ENCRYPTION_KEY, "code key").required, false);
+  // v2 secret contract: only credentials are secrets, and only under LISKOV_
+  // names. GitHub rejects a caller passing an undeclared secret, so a change to
+  // this list is a breaking change to every caller.
+  const secrets = object(workflowCall.secrets, "secrets");
+  assert.deepEqual(Object.keys(secrets), ["LISKOV_CODE_ENCRYPTION_KEY", "LISKOV_IPFS_API_KEY"]);
+  assert.equal(object(secrets.LISKOV_CODE_ENCRYPTION_KEY, "code key").required, false);
+  assert.equal(object(secrets.LISKOV_IPFS_API_KEY, "IPFS key").required, false);
+  const pinEnv = object(pin.env, "pin.env");
+  assert.deepEqual(Object.keys(pinEnv), ["LISKOV_CODE_ENCRYPTION_KEY", "LISKOV_IPFS_API_KEY"]);
+  assert.equal(pinEnv.LISKOV_CODE_ENCRYPTION_KEY, "${{ secrets.LISKOV_CODE_ENCRYPTION_KEY }}");
+  assert.equal(pinEnv.LISKOV_IPFS_API_KEY, "${{ secrets.LISKOV_IPFS_API_KEY }}");
+  assert.equal(pinWith["ipfs-endpoint"], "${{ inputs.ipfs-endpoint }}");
   assert.equal(pinWith["artifact-path"], "${{ inputs.artifact-path }}");
   assert.equal(pinWith["metadata-path"], "${{ inputs.artifact-metadata-path }}");
   assert.equal(pinWith["script-ipfs"], "${{ inputs.script-ipfs }}");
@@ -79,7 +91,7 @@ test("Acurast reusable workflow preserves defaults and wires prepared multi-targ
 
   assert.equal(upload.uses, "actions/upload-artifact@v4");
   assert.equal(object(upload.with, "upload.with").path, "${{ steps.pin.outputs.manifest-path }}");
-  assert.equal(attest.uses, "proof-computer/liskov-github-actions/actions/artifact-pin-attest@v1");
+  assert.equal(attest.uses, "proof-computer/liskov-github-actions/actions/artifact-pin-attest@v2");
   const attestWith = object(attest.with, "attest.with");
   assert.equal(attestWith["targets-path"], "${{ inputs.artifact-targets-path }}");
   assert.equal(

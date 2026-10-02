@@ -41,7 +41,7 @@ describe("Cargo runtime-image reusable workflow", () => {
     assert.equal(steps[attest]?.if, "${{ inputs.attest-runtime-image }}");
     assert.equal(
       steps[upload]?.uses,
-      "proof-computer/liskov-github-actions/actions/runtime-image-upload@v1"
+      "proof-computer/liskov-github-actions/actions/runtime-image-upload@v2"
     );
   });
 });
