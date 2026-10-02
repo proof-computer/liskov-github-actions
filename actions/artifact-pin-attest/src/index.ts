@@ -19,7 +19,7 @@ async function run(): Promise<void> {
   const authoredManifestPath = optionalInput("authored-manifest-path");
   const targetsPath = optionalInput("targets-path");
   const audience = core.getInput("audience") || "slipway-artifact-pin";
-  const urlTemplate = core.getInput("pin-url") || process.env.SLIPWAY_ARTIFACT_PIN_URL || DEFAULT_URL;
+  const urlTemplate = core.getInput("pin-url") || process.env.LISKOV_ARTIFACT_PIN_URL || DEFAULT_URL;
   const result = await runArtifactPinAttest({
     applicationId,
     buildManifestPath,

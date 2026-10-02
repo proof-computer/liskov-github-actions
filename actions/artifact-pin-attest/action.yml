@@ -17,7 +17,7 @@ inputs:
     required: false
     default: ""
   pin-url:
-    description: "Artifact-pin URL template ({applicationId} substituted). Defaults to the prod liskov-rs endpoint (or SLIPWAY_ARTIFACT_PIN_URL env)."
+    description: "Artifact-pin URL template ({applicationId} substituted). Defaults to the prod liskov-rs endpoint (or LISKOV_ARTIFACT_PIN_URL env)."
     required: false
     default: ""
   audience:

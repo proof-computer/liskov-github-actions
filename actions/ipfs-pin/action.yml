@@ -43,7 +43,7 @@ inputs:
     required: false
     default: ""
   ipfs-endpoint:
-    description: "Override the Acurast IPFS proxy endpoint (else ACURAST_IPFS_URL env, else the default proxy)."
+    description: "Override the Acurast IPFS proxy endpoint (else the default no-spend proxy). A Bearer key for it is read from the LISKOV_IPFS_API_KEY env."
     required: false
     default: ""
   manifest-name:

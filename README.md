@@ -1,7 +1,7 @@
 # liskov-github-actions
 
 Reusable GitHub **workflows** + **actions** for Liskov CI, so each Liskov repo's CI is a
-short `uses: …@v1` instead of copy-pasted YAML + scripts. Plan + decisions:
+short `uses: …@v2` instead of copy-pasted YAML + scripts. Plan + decisions:
 `liskov-agent-orchestrator` **BKLG-20260624-jn9l** (extracted from `liskov-diagnostic`'s
 inline scripts).
 
@@ -17,15 +17,12 @@ on:
 permissions: { id-token: write, contents: read }
 jobs:
   artifact:
-    uses: proof-computer/liskov-github-actions/.github/workflows/acurast-app.yml@v1
+    uses: proof-computer/liskov-github-actions/.github/workflows/acurast-app.yml@v2
     with:
       app-id: uptime-prober
       working-directory: uptime-prober      # default "."
       entrypoint: app.cjs                    # default; use bundle.cjs + extra-files: app.cjs for a stage0 app
       authored-manifest-path: uptime-prober/.liskov/uptime-prober.policy.json
-    secrets:
-      ACURAST_IPFS_URL: ${{ secrets.ACURAST_IPFS_URL }}
-      ACURAST_IPFS_API_KEY: ${{ secrets.ACURAST_IPFS_API_KEY }}
 ```
 
 Runs `pnpm install --frozen-lockfile → typecheck → test → build` (optional `smoke`),
@@ -37,6 +34,10 @@ the generated-zip defaults with `app-id`, `authored-manifest-path`,
 `working-directory`, `entrypoint`, `extra-files`, `node-version`, `smoke`, `attest`,
 and `pin-url`. The workflow exposes the CID, digest, uploaded build-manifest path,
 artifact-version IDs, per-Application result JSON, and target count.
+
+The default no-spend IPFS proxy needs no secret. To pin elsewhere, commit the
+endpoint as the `ipfs-endpoint` input (it is not a secret) and pass its Bearer
+key, if it needs one, as the `LISKOV_IPFS_API_KEY` secret.
 
 Callers that already prepare deploy bytes may set `prepare-command` and
 `artifact-path`. The path is relative to `working-directory`; `ipfs-pin` hashes and
@@ -80,7 +81,7 @@ on: { push: { branches: [main] } }
 permissions: { id-token: write, contents: read }
 jobs:
   publish:
-    uses: proof-computer/liskov-github-actions/.github/workflows/marketplace-ingest.yml@v1
+    uses: proof-computer/liskov-github-actions/.github/workflows/marketplace-ingest.yml@v2
 ```
 
 Mints an OIDC token and tells liskov-rs to reconcile the catalog to this commit. **The
@@ -96,7 +97,7 @@ on:
 permissions: { id-token: write, contents: read }
 jobs:
   manifest:
-    uses: proof-computer/liskov-github-actions/.github/workflows/policy-sync.yml@v1
+    uses: proof-computer/liskov-github-actions/.github/workflows/policy-sync.yml@v2
     with:
       application-id: slipway-diagnostic
       manifest-path: .liskov/slipway-diagnostic.policy.json
@@ -119,7 +120,7 @@ on:
 permissions: { id-token: write, contents: read }
 jobs:
   runtime-image:
-    uses: proof-computer/liskov-github-actions/.github/workflows/runtime-image.yml@v1
+    uses: proof-computer/liskov-github-actions/.github/workflows/runtime-image.yml@v2
     with:
       application-id: my-app
       manifest-path: .liskov/my-app.json
@@ -182,7 +183,7 @@ permissions:
 
 jobs:
   image:
-    uses: proof-computer/liskov-github-actions/.github/workflows/cargo-runtime-image.yml@v1
+    uses: proof-computer/liskov-github-actions/.github/workflows/cargo-runtime-image.yml@v2
     with:
       application-id: rust-hello-world
       manifest-path: .liskov/rust-hello-world.policy.json
@@ -199,7 +200,7 @@ jobs:
 
 ## À-la-carte actions
 
-Compose your own job from these (`uses: proof-computer/liskov-github-actions/actions/<name>@v1`):
+Compose your own job from these (`uses: proof-computer/liskov-github-actions/actions/<name>@v2`):
 
 | Action | Kind | Does |
 | --- | --- | --- |
@@ -215,7 +216,7 @@ Compose your own job from these (`uses: proof-computer/liskov-github-actions/act
 ## Versioning
 
 - Tag releases `vX.Y.Z`; `release.yml` moves the **`vX`** major tag so consumers pin
-  `@v1` and get the latest `v1.x`. Security-sensitive callers can pin a commit SHA.
+  `@v2` and get the latest `v2.x`. Security-sensitive callers can pin a commit SHA.
 - `v1.0.1` adds optional source-commit and signer-workflow verification for
   runtime images without changing existing direct-URL callers.
 - `v1.0.2` adds the default-standard runtime-image `bootstrap-mode` input; the
@@ -229,8 +230,15 @@ Compose your own job from these (`uses: proof-computer/liskov-github-actions/act
   and Liskov's exact OIDC/manifest/image binding.
 - `v1.2.4` lets one attested IPFS bundle target both existing V4 build manifests and
   identity-only V5 source documents without creating a V4 compatibility draft.
-- Reusable workflows reference their own JS actions by the literal `@v1` major tag,
-  so a caller pinned to `@v1` executes the matching released action surface.
+- `v2.0.0` changes the reusable workflow's secret contract, so it is a new
+  major. `acurast-app.yml` takes its IPFS endpoint as the `ipfs-endpoint` input
+  and declares exactly two secrets, `LISKOV_CODE_ENCRYPTION_KEY` and
+  `LISKOV_IPFS_API_KEY`. `ipfs-pin` reads its key from `LISKOV_IPFS_API_KEY`
+  and its endpoint only from `ipfs-endpoint`; `artifact-pin-attest` reads
+  `LISKOV_ARTIFACT_PIN_URL` behind its `pin-url` input. `v1` is frozen at
+  `v1.3.2`; a caller moves to `@v2` and its new names in one change.
+- Reusable workflows reference their own JS actions by the literal `@v2` major tag,
+  so a caller pinned to `@v2` executes the matching released action surface.
 
 ## Security posture
 
@@ -264,7 +272,7 @@ V4 `aes256_gcm` whole-bundle requirement remains a different, unsupported format
 ```yaml
 jobs:
   artifact:
-    uses: proof-computer/liskov-github-actions/.github/workflows/acurast-app.yml@v1
+    uses: proof-computer/liskov-github-actions/.github/workflows/acurast-app.yml@v2
     with:
       app-id: encrypted-worker
       authored-manifest-path: .liskov/encrypted-worker.json
