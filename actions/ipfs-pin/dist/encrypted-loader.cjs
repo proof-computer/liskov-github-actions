@@ -24,12 +24,12 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 
 // actions/ipfs-pin/src/encrypted-loader.ts
 var import_promises3 = require("node:fs/promises");
-var import_node_path4 = __toESM(require("node:path"), 1);
+var import_node_path5 = __toESM(require("node:path"), 1);
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/acurast.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_77eb32227ca1c8dff0b0e8f8f253bf33/node_modules/@proof-computer/liskov-runtime/dist/acurast.js
 var import_node_buffer2 = require("node:buffer");
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/env.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_77eb32227ca1c8dff0b0e8f8f253bf33/node_modules/@proof-computer/liskov-runtime/dist/env.js
 function resolveRuntimeStd(std) {
   return std ?? globalThis._STD_;
 }
@@ -50,12 +50,6 @@ function getRuntimeEnvValue(name, options = {}) {
   }
   return void 0;
 }
-function requiredRuntimeEnvValue(name, options = {}) {
-  const value = getRuntimeEnvValue(name, options);
-  if (!value)
-    throw new Error(`${name} is required`);
-  return value;
-}
 function getFirstRuntimeEnvValue(names, options = {}) {
   for (const name of names) {
     const value = getRuntimeEnvValue(name, options);
@@ -64,32 +58,8 @@ function getFirstRuntimeEnvValue(names, options = {}) {
   }
   return void 0;
 }
-function optionalBooleanEnv(name, options = {}) {
-  const value = getRuntimeEnvValue(name, options);
-  if (value === void 0)
-    return void 0;
-  if (value === "1" || value.toLowerCase() === "true")
-    return true;
-  if (value === "0" || value.toLowerCase() === "false")
-    return false;
-  return void 0;
-}
-function optionalIntegerEnv(name, options = {}) {
-  const value = getRuntimeEnvValue(name, options);
-  if (value === void 0)
-    return void 0;
-  const parsed = Number(value);
-  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : void 0;
-}
-function optionalNonNegativeIntegerEnv(name, options = {}) {
-  const value = getRuntimeEnvValue(name, options);
-  if (value === void 0)
-    return void 0;
-  const parsed = Number(value);
-  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : void 0;
-}
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/shared.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_77eb32227ca1c8dff0b0e8f8f253bf33/node_modules/@proof-computer/liskov-runtime/dist/shared.js
 var import_node_buffer = require("node:buffer");
 var import_node_crypto = require("node:crypto");
 function canonicalJson(value) {
@@ -251,24 +221,21 @@ function validEnvName(name) {
   return value;
 }
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/acurast.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_77eb32227ca1c8dff0b0e8f8f253bf33/node_modules/@proof-computer/liskov-runtime/dist/acurast.js
 var DEFAULT_JOB_ID_ENV_NAMES = [
-  "ACURAST_JOB_ID",
-  "PROOF_ACURAST_JOB_ID",
-  "SWITCHBOARD_MANAGED_JOB_ID"
+  "ACURAST_JOB_ID"
 ];
 var DEFAULT_PROCESSOR_ID_ENV_NAMES = [
   "ACURAST_PROCESSOR_ID",
-  "ACURAST_PROCESSOR_ADDRESS",
-  "PROOF_ACURAST_PROCESSOR_ID",
-  "SWITCHBOARD_MANAGED_PROCESSOR_ID"
+  "ACURAST_PROCESSOR_ADDRESS"
 ];
 var DEFAULT_ENCRYPTION_KEY_ENV_NAMES = [
-  "ACURAST_ENCRYPTION_PUBLIC_KEY",
-  "PROOF_ACURAST_ENCRYPTION_PUBLIC_KEY",
-  "SWITCHBOARD_MANAGED_ENCRYPTION_PUBLIC_KEY"
+  "ACURAST_ENCRYPTION_PUBLIC_KEY"
 ];
 var P256_ENCRYPTION_KEY_PRIME_PUBLIC_KEY = "036b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296";
+var SECP256K1_ENCRYPTION_KEY_PRIME_PUBLIC_KEY = "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
+var P256_ENCRYPTION_KEY_NAMES = ["p256", "secp256r1", "secp256r1Encryption", "encP256"];
+var SECP256K1_ENCRYPTION_KEY_NAMES = ["secp256k1", "secp256k1Encryption", "encSecp256k1"];
 function createAcurastRuntimeAdapter(options = {}) {
   return {
     async resolveIdentity(resolveOptions) {
@@ -286,6 +253,9 @@ async function resolveAcurastRuntimeIdentityAsync(options = {}, resolveOptions =
   const std = resolveRuntimeStd(options.std);
   if (resolveOptions.requireEncryptionKey === true) {
     await primeAcurastEncryptionKeys(std);
+    if (needsSecp256k1EncryptionKey(std, options)) {
+      await primeAcurastSecp256k1EncryptionKey(std);
+    }
   }
   return resolveAcurastRuntimeIdentityFromStd(std, options, resolveOptions);
 }
@@ -298,7 +268,7 @@ function resolveAcurastRuntimeIdentityFromStd(std, options, resolveOptions) {
     throw new Error("Acurast processor id is required for Slipway runtime bootstrap");
   const identity = { jobId, processorId };
   if (resolveOptions.requireEncryptionKey === true) {
-    const responseEncryptionKey = getFirstRuntimeEnvValue(options.encryptionKeyEnvNames ?? DEFAULT_ENCRYPTION_KEY_ENV_NAMES, options) ?? encryptionKeyFromStd(std);
+    const responseEncryptionKey = getFirstRuntimeEnvValue(options.encryptionKeyEnvNames ?? DEFAULT_ENCRYPTION_KEY_ENV_NAMES, options) ?? encryptionKeyFromStd(std, P256_ENCRYPTION_KEY_NAMES) ?? encryptionKeyFromStd(std, SECP256K1_ENCRYPTION_KEY_NAMES);
     if (!responseEncryptionKey) {
       throw new Error("Acurast response encryption key is required for Lockbox bootstrap");
     }
@@ -317,6 +287,18 @@ async function primeAcurastEncryptionKeys(std = resolveRuntimeStd()) {
     return { attempted: true, ok: false, errorMessage: error instanceof Error ? error.message : String(error) };
   }
 }
+function needsSecp256k1EncryptionKey(std, options) {
+  return getFirstRuntimeEnvValue(options.encryptionKeyEnvNames ?? DEFAULT_ENCRYPTION_KEY_ENV_NAMES, options) === void 0 && encryptionKeyFromStd(std, P256_ENCRYPTION_KEY_NAMES) === void 0;
+}
+async function primeAcurastSecp256k1EncryptionKey(std) {
+  const encrypt = std?.signers?.secp256k1?.encrypt;
+  if (typeof encrypt !== "function")
+    return;
+  try {
+    await Promise.resolve(encrypt.call(std?.signers?.secp256k1, SECP256K1_ENCRYPTION_KEY_PRIME_PUBLIC_KEY, "00", "00"));
+  } catch {
+  }
+}
 async function signAcurastRuntimeMessage(options = {}, message) {
   const std = resolveRuntimeStd(options.std);
   const sign = std?.signers?.ed25519?.sign;
@@ -327,20 +309,25 @@ async function signAcurastRuntimeMessage(options = {}, message) {
 }
 async function decryptAcurastRuntimePayload(options = {}, encrypted) {
   const std = resolveRuntimeStd(options.std);
-  const decrypt = std?.signers?.secp256r1?.decrypt;
+  const curveName = encrypted.curveName ?? "secp256r1";
+  if (curveName !== "secp256r1" && curveName !== "secp256k1") {
+    throw new Error("Lockbox encrypted payload has an unsupported curve");
+  }
+  const signer = std?.signers?.[curveName];
+  const decrypt = signer?.decrypt;
   if (typeof decrypt !== "function")
-    throw new Error("Acurast secp256r1 decrypt is required for Lockbox bootstrap");
-  const plaintextHex = await Promise.resolve(decrypt.call(std?.signers?.secp256r1, encrypted.senderPublicKey, encrypted.saltHex, encrypted.ciphertextHex));
+    throw new Error(`Acurast ${curveName} decrypt is required for Lockbox bootstrap`);
+  const plaintextHex = await Promise.resolve(decrypt.call(signer, encrypted.senderPublicKey, encrypted.saltHex, encrypted.ciphertextHex));
   return import_node_buffer2.Buffer.from(stripHexPrefix(normalizeHex(plaintextHex)), "hex");
 }
-function encryptionKeyFromStd(std) {
+function encryptionKeyFromStd(std, names) {
   const keys = safeCall(() => std?.job?.getEncryptionKeys?.());
   if (!keys)
     return void 0;
   const parsed = typeof keys === "string" ? parseJsonOrUndefined(keys) : keys;
   if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed))
     return void 0;
-  for (const name of ["p256", "secp256r1", "secp256r1Encryption", "encP256"]) {
+  for (const name of names) {
     const value = parsed[name];
     if (typeof value === "string" && value.length > 0)
       return value;
@@ -375,18 +362,18 @@ function safeCall(fn) {
   }
 }
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/blackbox-logger.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_77eb32227ca1c8dff0b0e8f8f253bf33/node_modules/@proof-computer/liskov-runtime/dist/blackbox-logger.js
 var import_node_buffer3 = require("node:buffer");
 var import_node_crypto3 = require("node:crypto");
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/home.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_77eb32227ca1c8dff0b0e8f8f253bf33/node_modules/@proof-computer/liskov-runtime/dist/home.js
 var import_node_path = __toESM(require("node:path"), 1);
-var SLIPWAY_HOME_ENV_NAME = "SLIPWAY_HOME";
+var LISKOV_HOME_ENV_NAME = "LISKOV_HOME";
 var DEFAULT_SLIPWAY_HOME_DIRNAME = ".slipway";
 var FALLBACK_SLIPWAY_HOME = "/tmp/slipway";
 function resolveSlipwayHome(options = {}) {
   const env = options.env ?? process.env;
-  const raw = firstNonEmpty(options.home, env[SLIPWAY_HOME_ENV_NAME]);
+  const raw = firstNonEmpty(options.home, env[LISKOV_HOME_ENV_NAME]);
   if (raw !== void 0)
     return expandHome(raw, env);
   const homeDir = firstNonEmpty(env.HOME, env.USERPROFILE);
@@ -407,16 +394,16 @@ function firstNonEmpty(...values) {
   return values.find((value) => typeof value === "string" && value.length > 0);
 }
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/blackbox-spool-internal.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_77eb32227ca1c8dff0b0e8f8f253bf33/node_modules/@proof-computer/liskov-runtime/dist/blackbox-spool-internal.js
 var testModules;
 async function loadDiskSpoolModules() {
   if (testModules)
     return testModules;
-  const [fs, path5] = await Promise.all([import("node:fs/promises"), import("node:path")]);
-  return { fs, path: path5.default ?? path5 };
+  const [fs, path6] = await Promise.all([import("node:fs/promises"), import("node:path")]);
+  return { fs, path: path6.default ?? path6 };
 }
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/proof-log-crypto.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_77eb32227ca1c8dff0b0e8f8f253bf33/node_modules/@proof-computer/liskov-runtime/dist/proof-log-crypto.js
 var import_node_crypto2 = require("node:crypto");
 function encryptProofLogRecord(key, value) {
   const iv = (0, import_node_crypto2.randomBytes)(12);
@@ -447,7 +434,7 @@ function base64UrlDecode(value) {
   return Buffer.from(value, "base64url");
 }
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/blackbox-logger.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_77eb32227ca1c8dff0b0e8f8f253bf33/node_modules/@proof-computer/liskov-runtime/dist/blackbox-logger.js
 var BLACKBOX_LOG_ENV_NAMES = [
   "BLACKBOX_LOG_CONFIG",
   "BLACKBOX_SINK_ID",
@@ -1154,9 +1141,9 @@ var DiskSpoolStorage = class {
     this.stateFile = modules.path.join(spoolDir, SPOOL_STATE_FILE);
   }
   async probe() {
-    const { fs, path: path5 } = this.modules;
+    const { fs, path: path6 } = this.modules;
     await fs.mkdir(this.spoolDir, { recursive: true });
-    const marker = path5.join(this.spoolDir, `.blackbox-spool-probe-${(0, import_node_crypto3.randomBytes)(6).toString("hex")}`);
+    const marker = path6.join(this.spoolDir, `.blackbox-spool-probe-${(0, import_node_crypto3.randomBytes)(6).toString("hex")}`);
     try {
       await fs.writeFile(marker, "ok", "utf8");
     } finally {
@@ -1219,8 +1206,8 @@ var DiskSpoolStorage = class {
     }
   }
   async writeJsonAtomic(file, value) {
-    const { fs, path: path5 } = this.modules;
-    await fs.mkdir(path5.dirname(file), { recursive: true });
+    const { fs, path: path6 } = this.modules;
+    await fs.mkdir(path6.dirname(file), { recursive: true });
     const tmp = `${file}.${(0, import_node_crypto3.randomBytes)(6).toString("hex")}.tmp`;
     try {
       await fs.writeFile(tmp, `${JSON.stringify(value)}
@@ -1235,7 +1222,7 @@ var DiskSpoolStorage = class {
     }
   }
   async directorySize(dir) {
-    const { fs, path: path5 } = this.modules;
+    const { fs, path: path6 } = this.modules;
     let total = 0;
     let entries;
     try {
@@ -1250,13 +1237,13 @@ var DiskSpoolStorage = class {
         continue;
       let info;
       try {
-        info = await fs.stat(path5.join(dir, entry));
+        info = await fs.stat(path6.join(dir, entry));
       } catch (error) {
         if (isNotFound(error))
           continue;
         throw error;
       }
-      total += info.isDirectory() ? await this.directorySize(path5.join(dir, entry)) : info.size;
+      total += info.isDirectory() ? await this.directorySize(path6.join(dir, entry)) : info.size;
     }
     return total;
   }
@@ -1515,8 +1502,17 @@ function withoutUndefined(value) {
   return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== void 0));
 }
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/bootstrap.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_77eb32227ca1c8dff0b0e8f8f253bf33/node_modules/@proof-computer/liskov-runtime/dist/bootstrap.js
 var import_node_buffer4 = require("node:buffer");
+
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_77eb32227ca1c8dff0b0e8f8f253bf33/node_modules/@proof-computer/liskov-runtime/dist/env-names.js
+var LISKOV_BOOTSTRAP_ENV = "LISKOV_BOOTSTRAP";
+var LISKOV_BOOTSTRAP_ENV_NAMES = [LISKOV_BOOTSTRAP_ENV];
+var LISKOV_CORE_URL_ENV = "LISKOV_CORE_URL";
+var LOCKBOX_BOOTSTRAP_ENV = "LISKOV_LOCKBOX_BOOTSTRAP";
+var LOCKBOX_BOOTSTRAP_ENV_NAMES = [LOCKBOX_BOOTSTRAP_ENV];
+
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_77eb32227ca1c8dff0b0e8f8f253bf33/node_modules/@proof-computer/liskov-runtime/dist/bootstrap.js
 var LISKOV_RUNTIME_BOOTSTRAP_REQUEST_DOMAIN_V1 = "proof.liskov.runtime-bootstrap-request.v1";
 var LISKOV_RUNTIME_BOOTSTRAP_REQUEST_DOMAIN_V2 = "proof.liskov.runtime-bootstrap-request.v2";
 var LISKOV_SECRET_BOOTSTRAP_REQUEST_DOMAIN_V1 = "proof.liskov.secret-bootstrap-request.v1";
@@ -1548,15 +1544,15 @@ var LiskovSignedBootstrapHttpError = class extends Error {
 };
 function liskovSignedBootstrapUrls(options = {}) {
   return {
-    coreUrl: options.coreUrl ?? getRuntimeEnvValue("PROOF_LISKOV_CORE_URL", options) ?? getRuntimeEnvValue("PROOF_SLIPWAY_URL", options) ?? DEFAULT_LISKOV_CORE_URL,
-    secretsUrl: options.secretsUrl ?? getRuntimeEnvValue("PROOF_LISKOV_SECRETS_URL", options) ?? DEFAULT_LISKOV_SECRETS_URL
+    coreUrl: options.coreUrl ?? getRuntimeEnvValue(LISKOV_CORE_URL_ENV, options) ?? DEFAULT_LISKOV_CORE_URL,
+    secretsUrl: options.secretsUrl ?? DEFAULT_LISKOV_SECRETS_URL
   };
 }
 function liskovSignedBootstrapAllowInsecureHttp(options = {}) {
-  return options.allowInsecureHttp ?? optionalBooleanEnv("PROOF_LISKOV_BOOTSTRAP_ALLOW_INSECURE_HTTP", options);
+  return options.allowInsecureHttp;
 }
 function liskovSignedBootstrapRequestTtlMs(options = {}) {
-  return options.requestTtlMs ?? optionalIntegerEnv("PROOF_LISKOV_BOOTSTRAP_REQUEST_TTL_MS", options) ?? DEFAULT_LISKOV_BOOTSTRAP_REQUEST_TTL_MS;
+  return options.requestTtlMs ?? DEFAULT_LISKOV_BOOTSTRAP_REQUEST_TTL_MS;
 }
 function liskovSignedBootstrapRetryOptions(options = {}) {
   return {
@@ -1654,7 +1650,8 @@ async function loadLiskovRuntimeBootstrap(input) {
     return response2;
   });
   assertRuntimeBootstrapBinding({ request, response });
-  const runtimeEnvConfig = response.runtimeEnv?.enabled === false ? void 0 : {
+  const runtimeEnvEnabled = response.runtimeEnv?.enabled !== false;
+  const runtimeEnvConfig = {
     slipwayUrl: response.runtimeEnv?.url ?? response.slipwayUrl,
     ...response.applicationUid === void 0 ? {} : { applicationUid: response.applicationUid },
     applicationId: response.applicationId,
@@ -1668,7 +1665,9 @@ async function loadLiskovRuntimeBootstrap(input) {
     request,
     response,
     runtimeEnvConfig,
-    secretsRequired: response.secrets?.required === true,
+    runtimeEnvEnabled,
+    secretsRequired: response.secrets?.customerRequired ?? response.secrets?.required === true,
+    ...response.secrets?.customerRequired === void 0 ? {} : { customerSecretsRequired: response.secrets.customerRequired },
     secretsUrl: response.secrets?.url ?? urls.secretsUrl
   };
 }
@@ -1741,6 +1740,7 @@ function parseLiskovRuntimeBootstrapResponse(value) {
       url: optionalString(runtimeEnv, "url")
     },
     secrets: secrets === void 0 ? void 0 : {
+      ...optionalBoolean(secrets, "customerRequired") === void 0 ? {} : { customerRequired: optionalBoolean(secrets, "customerRequired") },
       required: optionalBoolean(secrets, "required"),
       url: optionalString(secrets, "url")
     }
@@ -1908,7 +1908,7 @@ function secretBootstrapResponseDomain(value) {
   throw new Error("Liskov secret bootstrap response has an unsupported domain");
 }
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/diagnostics.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_77eb32227ca1c8dff0b0e8f8f253bf33/node_modules/@proof-computer/liskov-runtime/dist/diagnostics.js
 var SLIPWAY_RUNTIME_DIAGNOSTIC_DOMAIN = "proof.slipway.runtime-diagnostic.v1";
 var LISKOV_RUNTIME_DIAGNOSTIC_DOMAIN_V2 = "proof.liskov.runtime-diagnostic.v2";
 var LISKOV_RUNTIME_DIAGNOSTIC_DOMAIN_V3 = "proof.liskov.runtime-diagnostic.v3";
@@ -2434,24 +2434,128 @@ function diagnosticErrorMessage(error) {
   return safeErrorMessage(error);
 }
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/env-names.js
-var LISKOV_BOOTSTRAP_ENV = "LISKOV_BOOTSTRAP";
-var LEGACY_LISKOV_BOOTSTRAP_ENV = "PROOF_SLIPWAY_BOOTSTRAP";
-var LISKOV_BOOTSTRAP_ENV_NAMES = [
-  LISKOV_BOOTSTRAP_ENV,
-  LEGACY_LISKOV_BOOTSTRAP_ENV
-];
-var LOCKBOX_BOOTSTRAP_ENV = "LISKOV_LOCKBOX_BOOTSTRAP";
-var LEGACY_LOCKBOX_BOOTSTRAP_ENV = "PROOF_LOCKBOX_BOOTSTRAP";
-var LOCKBOX_BOOTSTRAP_ENV_NAMES = [
-  LOCKBOX_BOOTSTRAP_ENV,
-  LEGACY_LOCKBOX_BOOTSTRAP_ENV
-];
-
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/lockbox.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_77eb32227ca1c8dff0b0e8f8f253bf33/node_modules/@proof-computer/liskov-runtime/dist/lockbox.js
 var import_node_buffer5 = require("node:buffer");
+
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_77eb32227ca1c8dff0b0e8f8f253bf33/node_modules/@proof-computer/liskov-runtime/dist/secret-files.js
+var import_node_fs = require("node:fs");
 var import_promises = require("node:fs/promises");
+var import_node_crypto4 = require("node:crypto");
 var import_node_path2 = __toESM(require("node:path"), 1);
+async function installSecretFiles(group) {
+  const entries = [];
+  try {
+    if (new Set(group.map((file) => file.path)).size !== group.length) {
+      throw new Error("duplicate file secret destination");
+    }
+    for (const file of group) {
+      const dir = await openDirectory(import_node_path2.default.dirname(file.path));
+      const anchor = process.platform === "linux" ? `/proc/self/fd/${dir.fd}` : import_node_path2.default.dirname(file.path);
+      const name = import_node_path2.default.basename(file.path);
+      if (name.startsWith(".liskov-secret-")) {
+        await dir.close();
+        throw new Error("reserved file secret destination");
+      }
+      const key = (0, import_node_crypto4.createHash)("sha256").update(name).digest("hex").slice(0, 32);
+      const entry = {
+        dir,
+        target: import_node_path2.default.join(anchor, name),
+        stage: import_node_path2.default.join(anchor, `.liskov-secret-${key}.stage`),
+        backup: import_node_path2.default.join(anchor, `.liskov-secret-${key}.backup`),
+        hadOriginal: false,
+        installed: false
+      };
+      entries.push(entry);
+      if (await regularFile(entry.backup)) {
+        if (await regularFile(entry.target))
+          await (0, import_promises.unlink)(entry.target);
+        await (0, import_promises.rename)(entry.backup, entry.target);
+      }
+      if (await regularFile(entry.stage))
+        await (0, import_promises.unlink)(entry.stage);
+      entry.hadOriginal = await regularFile(entry.target);
+      const staged = await (0, import_promises.open)(entry.stage, import_node_fs.constants.O_WRONLY | import_node_fs.constants.O_CREAT | import_node_fs.constants.O_EXCL | import_node_fs.constants.O_NOFOLLOW, 384);
+      try {
+        await staged.writeFile(file.value, "utf8");
+        await staged.sync();
+      } finally {
+        await staged.close();
+      }
+    }
+    for (const entry of entries) {
+      if (entry.hadOriginal)
+        await (0, import_promises.rename)(entry.target, entry.backup);
+      await (0, import_promises.rename)(entry.stage, entry.target);
+      entry.installed = true;
+      await entry.dir.sync();
+    }
+  } catch (error) {
+    const failures = [error];
+    for (const entry of entries.toReversed()) {
+      try {
+        if (entry.installed)
+          await (0, import_promises.unlink)(entry.target);
+        if (await regularFile(entry.backup))
+          await (0, import_promises.rename)(entry.backup, entry.target);
+        if (await regularFile(entry.stage))
+          await (0, import_promises.unlink)(entry.stage);
+        await entry.dir.sync();
+      } catch (rollbackError) {
+        failures.push(rollbackError);
+      }
+    }
+    await Promise.all(entries.map((entry) => entry.dir.close()));
+    throw new AggregateError(failures, "file secret installation failed");
+  }
+  try {
+    for (const entry of entries) {
+      if (entry.hadOriginal)
+        await (0, import_promises.unlink)(entry.backup);
+      await entry.dir.sync();
+    }
+  } finally {
+    await Promise.all(entries.map((entry) => entry.dir.close()));
+  }
+}
+async function regularFile(target) {
+  try {
+    const stat = await (0, import_promises.lstat)(target);
+    if (!stat.isFile() || stat.isSymbolicLink())
+      throw new Error("file secret target is not a regular file");
+    return true;
+  } catch (error) {
+    if (error.code === "ENOENT")
+      return false;
+    throw error;
+  }
+}
+async function openDirectory(directory) {
+  let handle = await (0, import_promises.open)(import_node_path2.default.parse(directory).root, import_node_fs.constants.O_RDONLY | import_node_fs.constants.O_DIRECTORY | import_node_fs.constants.O_NOFOLLOW);
+  let prefix = import_node_path2.default.parse(directory).root;
+  try {
+    for (const component of directory.slice(prefix.length).split(import_node_path2.default.sep).filter(Boolean)) {
+      const parent = process.platform === "linux" ? `/proc/self/fd/${handle.fd}` : prefix;
+      const next = import_node_path2.default.join(parent, component);
+      try {
+        await (0, import_promises.mkdir)(next, { mode: 448 });
+      } catch (error) {
+        if (error.code !== "EEXIST")
+          throw error;
+      }
+      const child = await (0, import_promises.open)(next, import_node_fs.constants.O_RDONLY | import_node_fs.constants.O_DIRECTORY | import_node_fs.constants.O_NOFOLLOW);
+      await handle.close();
+      handle = child;
+      prefix = import_node_path2.default.join(prefix, component);
+    }
+    return handle;
+  } catch (error) {
+    await handle.close();
+    throw error;
+  }
+}
+
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_77eb32227ca1c8dff0b0e8f8f253bf33/node_modules/@proof-computer/liskov-runtime/dist/lockbox.js
+var import_node_path3 = __toESM(require("node:path"), 1);
 var LOCKBOX_RUNTIME_JOB_SECRET_REQUEST_DOMAIN_V1 = "proof.lockbox.job-secret-request.v1";
 var LOCKBOX_RUNTIME_JOB_SECRET_REQUEST_DOMAIN_V2 = "proof.lockbox.job-secret-request.v2";
 var LOCKBOX_RUNTIME_JOB_SECRET_RESPONSE_DOMAIN_V1 = "proof.lockbox.job-secret-response.v1";
@@ -2461,27 +2565,11 @@ var LOCKBOX_RUNTIME_JOB_SECRET_ENCRYPTED_PAYLOAD_DOMAIN_V2 = "proof.lockbox.job-
 var LOCKBOX_RUNTIME_JOB_SECRET_AAD_DOMAIN_V2 = "proof.lockbox.job-secret-response.aad.v2";
 function readLockboxRuntimeConfig(options = {}) {
   const compact = getFirstRuntimeEnvValue(LOCKBOX_BOOTSTRAP_ENV_NAMES, options);
-  if (compact !== void 0)
-    return lockboxRuntimeConfigFromBootstrap(compact, options);
-  const lockboxUrl = getRuntimeEnvValue("PROOF_LOCKBOX_URL", options);
-  if (!lockboxUrl)
+  if (compact === void 0)
     return void 0;
-  const secretIds = getRuntimeEnvValue("PROOF_LOCKBOX_SECRET_IDS", options) ?? getRuntimeEnvValue("PROOF_LOCKBOX_REQUESTED_SECRET_IDS", options);
-  return {
-    lockboxUrl,
-    applicationUid: getRuntimeEnvValue("LISKOV_APPLICATION_UID", options),
-    applicationId: requiredRuntimeEnvValue("PROOF_LOCKBOX_APPLICATION_ID", options),
-    grantId: requiredRuntimeEnvValue("PROOF_LOCKBOX_GRANT_ID", options),
-    policyDigest: normalizePolicyDigest(requiredRuntimeEnvValue("PROOF_LOCKBOX_POLICY_DIGEST", options)),
-    deploymentId: requiredRuntimeEnvValue("PROOF_LOCKBOX_DEPLOYMENT_ID", options),
-    requestedSecretIds: parseStringArrayOrCsv(secretIds, "PROOF_LOCKBOX_SECRET_IDS"),
-    allowInsecureHttp: optionalBooleanEnv("PROOF_LOCKBOX_ALLOW_INSECURE_HTTP", options),
-    fileBaseDir: getRuntimeEnvValue("PROOF_LOCKBOX_FILE_BASE_DIR", options),
-    requestTtlMs: optionalIntegerEnv("PROOF_LOCKBOX_REQUEST_TTL_MS", options),
-    overwriteEnv: optionalBooleanEnv("PROOF_LOCKBOX_OVERWRITE_ENV", options)
-  };
+  return lockboxRuntimeConfigFromBootstrap(compact, options);
 }
-function lockboxRuntimeConfigFromBootstrap(rawBootstrap, options = {}) {
+function lockboxRuntimeConfigFromBootstrap(rawBootstrap, _options = {}) {
   const record = asRecord(parseJson(rawBootstrap, LOCKBOX_BOOTSTRAP_ENV), LOCKBOX_BOOTSTRAP_ENV);
   const secretIds = record.s ?? record.secretIds ?? record.requestedSecretIds;
   return {
@@ -2492,10 +2580,8 @@ function lockboxRuntimeConfigFromBootstrap(rawBootstrap, options = {}) {
     policyDigest: normalizePolicyDigest(requiredStringAlias(record, "p", "policyDigest")),
     deploymentId: requiredStringAlias(record, "d", "deploymentId"),
     requestedSecretIds: parseStringArrayOrCsv(secretIds, `${LOCKBOX_BOOTSTRAP_ENV}.s`),
-    allowInsecureHttp: Boolean(optionalBooleanEnv("PROOF_LOCKBOX_ALLOW_INSECURE_HTTP", options) ?? record.allowInsecureHttp),
-    fileBaseDir: typeof record.f === "string" ? record.f : typeof record.fileBaseDir === "string" ? record.fileBaseDir : void 0,
-    requestTtlMs: optionalIntegerEnv("PROOF_LOCKBOX_REQUEST_TTL_MS", options),
-    overwriteEnv: optionalBooleanEnv("PROOF_LOCKBOX_OVERWRITE_ENV", options)
+    allowInsecureHttp: Boolean(record.allowInsecureHttp),
+    fileBaseDir: typeof record.f === "string" ? record.f : typeof record.fileBaseDir === "string" ? record.fileBaseDir : void 0
   };
 }
 function bootstrapApplicationUid(record) {
@@ -2662,28 +2748,45 @@ async function decryptAndVerifyLockboxRuntimePayload(input) {
 }
 async function installLockboxRuntimeSecrets(input) {
   const env = input.env ?? process.env;
-  const files = input.files ?? { mkdir: import_promises.mkdir, writeFile: import_promises.writeFile, chmod: import_promises.chmod };
+  const pendingEnv = [];
+  const pendingFiles = [];
   const installed = { env: [], files: [], skippedExistingEnv: [] };
   for (const secret of input.payload.secrets) {
     const record = installedSecret(secret);
     if (secret.target === "env") {
       const name = validEnvName(secret.name);
+      if (secret.value.includes("\0"))
+        throw new Error("environment secret contains a NUL byte");
       if (env[name] !== void 0 && input.overwriteEnv !== true) {
         installed.skippedExistingEnv.push(record);
         continue;
       }
-      env[name] = secret.value;
+      pendingEnv.push({ name, value: secret.value });
       installed.env.push(record);
       continue;
     }
-    if (!input.fileBaseDir)
-      throw new Error("file-target Lockbox secrets require fileBaseDir");
     const targetPath = safeSecretFilePath(input.fileBaseDir, secret.name);
-    await files.mkdir(import_node_path2.default.dirname(targetPath), { recursive: true });
-    await files.writeFile(targetPath, secret.value, { encoding: "utf8", mode: 384 });
-    await files.chmod(targetPath, 384);
+    if (import_node_path3.default.isAbsolute(secret.name) && input.files && !input.files.installGroup) {
+      throw new Error("absolute file secrets require an atomic installGroup writer");
+    }
+    pendingFiles.push({ path: targetPath, value: secret.value });
     installed.files.push(record);
   }
+  if (pendingFiles.length > 0) {
+    if (!input.files)
+      await installSecretFiles(pendingFiles);
+    else if (input.files.installGroup)
+      await input.files.installGroup(pendingFiles);
+    else {
+      for (const file of pendingFiles) {
+        await input.files.mkdir(import_node_path3.default.dirname(file.path), { recursive: true });
+        await input.files.writeFile(file.path, file.value, { encoding: "utf8", mode: 384 });
+        await input.files.chmod(file.path, 384);
+      }
+    }
+  }
+  for (const entry of pendingEnv)
+    env[entry.name] = entry.value;
   return installed;
 }
 async function postLockboxRuntimeJobSecretRequest(input) {
@@ -2780,20 +2883,28 @@ function parseLockboxPlaintextPayload(value) {
     secrets: parsePlaintextSecrets(record.secrets)
   };
 }
-function parseLockboxEncryptedPayload(value) {
-  const record = asRecord(value, "Lockbox encrypted payload");
-  const domain = lockboxEncryptedPayloadDomain(record.domain);
-  const version = requiredString(record, "version");
-  const curveName = requiredString(record, "curveName");
+function lockboxEncryptedPayloadEnvelope(domain, version, curveName) {
+  if (version === "acurast-secp256k1-hkdf-aes-256-gcm-v1") {
+    if (curveName !== "secp256k1")
+      throw new Error("Lockbox encrypted payload has an unsupported curve");
+    return { version, curveName };
+  }
   const expectedVersion = domain === LOCKBOX_RUNTIME_JOB_SECRET_ENCRYPTED_PAYLOAD_DOMAIN_V2 ? "acurast-p256-hkdf-aes-256-gcm-v2" : "acurast-p256-hkdf-aes-256-gcm-v1";
   if (version !== expectedVersion)
     throw new Error("Lockbox encrypted payload has an unsupported version");
   if (curveName !== "secp256r1")
     throw new Error("Lockbox encrypted payload has an unsupported curve");
+  return { version, curveName };
+}
+function parseLockboxEncryptedPayload(value) {
+  const record = asRecord(value, "Lockbox encrypted payload");
+  const domain = lockboxEncryptedPayloadDomain(record.domain);
+  const version = requiredString(record, "version");
+  const curveName = requiredString(record, "curveName");
+  const envelope = lockboxEncryptedPayloadEnvelope(domain, version, curveName);
   return {
     domain,
-    version,
-    curveName,
+    ...envelope,
     senderPublicKey: requiredString(record, "senderPublicKey"),
     saltHex: requiredString(record, "saltHex"),
     ciphertextHex: requiredString(record, "ciphertextHex"),
@@ -2846,7 +2957,15 @@ function assertLockboxPayloadBinding(input) {
       throw new Error(`Lockbox plaintext payload ${label} did not match the signed request`);
   }
   const requested = new Set(request.requestedSecretIds);
+  const metadata = new Map(input.response.secretVersions.map((secret) => [secret.secretId, secret]));
+  const ids = new Set(input.payload.secrets.map((secret) => secret.secretId));
+  if (metadata.size !== input.response.secretVersions.length || ids.size !== input.payload.secrets.length || ids.size !== metadata.size || request.domain === LOCKBOX_RUNTIME_JOB_SECRET_REQUEST_DOMAIN_V2 && ids.size !== requested.size)
+    throw new Error("Lockbox secret group is incomplete or duplicated");
   for (const secret of input.payload.secrets) {
+    const expected2 = metadata.get(secret.secretId);
+    if (!expected2 || expected2.versionId !== secret.versionId || expected2.target !== secret.target || expected2.name !== secret.name || expected2.required !== secret.required || expected2.bundleId !== secret.bundleId) {
+      throw new Error("Lockbox secret destination did not match its encrypted payload");
+    }
     if (!requested.has(secret.secretId)) {
       throw new Error("Lockbox plaintext payload included a secret that was not requested");
     }
@@ -2916,10 +3035,18 @@ function parseJsonOrUndefined2(raw) {
 }
 function safeSecretFilePath(baseDir, name) {
   const cleanName = validSecretFileName(name);
-  const base = import_node_path2.default.resolve(baseDir);
-  const target = import_node_path2.default.resolve(base, cleanName);
-  const relative = import_node_path2.default.relative(base, target);
-  if (relative === "" || relative.startsWith("..") || import_node_path2.default.isAbsolute(relative)) {
+  if (cleanName.split(/[\\/]/u).includes(".."))
+    throw new Error("file secret path escapes the configured base directory");
+  if (cleanName.endsWith("/"))
+    throw new Error("file secret name is invalid");
+  if (import_node_path3.default.isAbsolute(cleanName))
+    return cleanName;
+  if (!baseDir)
+    throw new Error("relative file-target Lockbox secrets require fileBaseDir");
+  const base = import_node_path3.default.resolve(baseDir);
+  const target = import_node_path3.default.resolve(base, cleanName);
+  const relative = import_node_path3.default.relative(base, target);
+  if (relative === "" || relative.startsWith("..") || import_node_path3.default.isAbsolute(relative)) {
     throw new Error("file secret path escapes the configured base directory");
   }
   return target;
@@ -2977,7 +3104,7 @@ function lockboxEncryptedPayloadDomain(value) {
   throw new Error("Lockbox encrypted payload has an unsupported domain");
 }
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/runtime-env.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_77eb32227ca1c8dff0b0e8f8f253bf33/node_modules/@proof-computer/liskov-runtime/dist/runtime-env.js
 var import_node_buffer6 = require("node:buffer");
 var SLIPWAY_RUNTIME_ENV_REQUEST_DOMAIN_V1 = "proof.slipway.runtime-env-request.v1";
 var SLIPWAY_RUNTIME_ENV_REQUEST_DOMAIN_V2 = "proof.liskov.runtime-env-request.v2";
@@ -2989,7 +3116,7 @@ function readSlipwayRuntimeEnvConfig(options = {}) {
     return void 0;
   return slipwayRuntimeEnvConfigFromBootstrap(raw, options);
 }
-function slipwayRuntimeEnvConfigFromBootstrap(rawBootstrap, options = {}) {
+function slipwayRuntimeEnvConfigFromBootstrap(rawBootstrap, _options = {}) {
   const record = asRecord(JSON.parse(rawBootstrap), LISKOV_BOOTSTRAP_ENV);
   return {
     slipwayUrl: requiredStringAlias(record, "u", "url", "slipwayUrl"),
@@ -2998,10 +3125,8 @@ function slipwayRuntimeEnvConfigFromBootstrap(rawBootstrap, options = {}) {
     policyDigest: normalizePolicyDigest(requiredStringAlias(record, "p", "policyDigest")),
     deploymentId: requiredStringAlias(record, "d", "deploymentId"),
     diagnosticsToken: diagnosticsTokenFromBootstrap(record),
-    runtimeHealth: runtimeHealthConfigFromBootstrap(record, options),
-    allowInsecureHttp: Boolean(optionalBooleanEnv("PROOF_SLIPWAY_RUNTIME_ENV_ALLOW_INSECURE_HTTP", options) ?? record.allowInsecureHttp),
-    requestTtlMs: optionalIntegerEnv("PROOF_SLIPWAY_RUNTIME_ENV_REQUEST_TTL_MS", options),
-    nonce: getRuntimeEnvValue("PROOF_SLIPWAY_RUNTIME_ENV_NONCE", options)
+    runtimeHealth: runtimeHealthConfigFromBootstrap(record),
+    allowInsecureHttp: Boolean(record.allowInsecureHttp)
   };
 }
 function bootstrapApplicationUid2(record) {
@@ -3248,13 +3373,13 @@ function diagnosticsTokenFromBootstrap(record) {
   const token = diagnostics?.t ?? diagnostics?.token;
   return typeof token === "string" && token.length > 0 ? token : void 0;
 }
-function runtimeHealthConfigFromBootstrap(record, options) {
+function runtimeHealthConfigFromBootstrap(record) {
   const diagnostics = recordOrUndefined(record.x) ?? recordOrUndefined(record.diagnostics);
   const health = recordOrUndefined(diagnostics?.h) ?? recordOrUndefined(diagnostics?.health);
   const config = {
-    intervalMs: optionalNonNegativeIntegerEnv("PROOF_SLIPWAY_RUNTIME_HEALTH_INTERVAL_MS", options) ?? nonNegativeIntegerField(health, "i", "intervalMs"),
-    initialDelayMs: optionalNonNegativeIntegerEnv("PROOF_SLIPWAY_RUNTIME_HEALTH_INITIAL_DELAY_MS", options) ?? nonNegativeIntegerField(health, "d", "initialDelayMs"),
-    sendTimeoutMs: optionalIntegerEnv("PROOF_SLIPWAY_RUNTIME_DIAGNOSTIC_SEND_TIMEOUT_MS", options) ?? positiveIntegerField(health, "to", "timeoutMs", "sendTimeoutMs")
+    intervalMs: nonNegativeIntegerField(health, "i", "intervalMs"),
+    initialDelayMs: nonNegativeIntegerField(health, "d", "initialDelayMs"),
+    sendTimeoutMs: positiveIntegerField(health, "to", "timeoutMs", "sendTimeoutMs")
   };
   return Object.values(config).some((value) => value !== void 0) ? config : void 0;
 }
@@ -3278,7 +3403,7 @@ async function emit2(diagnostics, event) {
   await Promise.resolve(diagnostics?.(event));
 }
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/index.js
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_77eb32227ca1c8dff0b0e8f8f253bf33/node_modules/@proof-computer/liskov-runtime/dist/index.js
 var SlipwayRuntimeNotReadyError = class extends Error {
   status;
   constructor(status) {
@@ -3309,14 +3434,18 @@ async function resolveSignedRuntimeBootstrap(input) {
   const runtimeBootstrap = await loadSignedRuntimeBootstrapOrSkip(input.mode, signedOptions);
   if (!runtimeBootstrap)
     return;
+  if (runtimeBootstrap.customerSecretsRequired !== void 0) {
+    input.setDefaultSecretsMode(runtimeBootstrap.customerSecretsRequired ? "required" : "background");
+  }
   if (runtimeBootstrap.runtimeEnvConfig !== void 0) {
     input.setSlipwayConfig(runtimeBootstrap.runtimeEnvConfig);
   }
+  input.setRuntimeEnvEnabled(runtimeBootstrap.runtimeEnvEnabled);
   if (input.hasLockboxConfig && input.mode !== "signed")
     return;
   if (input.requestedSecretsMode === "off")
     return;
-  const shouldDiscoverSecrets = runtimeBootstrap.secretsRequired || input.requestedSecretsMode === "required" || input.requestedSecretsMode === "background";
+  const shouldDiscoverSecrets = runtimeBootstrap.customerSecretsRequired !== void 0 || runtimeBootstrap.secretsRequired || input.requestedSecretsMode === "required" || input.requestedSecretsMode === "background";
   if (!shouldDiscoverSecrets)
     return;
   await allowBootstrapHostnames(input.std, [urlHostOrNull(runtimeBootstrap.secretsUrl)]);
@@ -3354,6 +3483,7 @@ async function bootstrapSlipwayRuntime(options = {}) {
   const identityLookup = signedBootstrapMode === "off" ? lookup : { env, std };
   const identityProvider = options.identityProvider ?? createAcurastRuntimeAdapter(identityLookup);
   let slipwayConfig = readSlipwayRuntimeEnvConfig(legacyBootstrapLookup);
+  let runtimeEnvEnabled = slipwayConfig !== void 0;
   let lockboxConfig = readLockboxRuntimeConfig(legacyBootstrapLookup);
   const startedAtMs = options.nowMs?.() ?? Date.now();
   const signedUrls = liskovSignedBootstrapUrls({
@@ -3366,6 +3496,7 @@ async function bootstrapSlipwayRuntime(options = {}) {
   const shouldResolveSignedBootstrap = signedBootstrapMode !== "off" && (signedBootstrapMode === "signed" || slipwayConfig === void 0 && lockboxConfig === void 0 || lockboxConfig === void 0 && options.secrets?.mode !== void 0 && options.secrets.mode !== "off");
   const fatalCleanup = [];
   let failureStage = "runtime_bootstrap";
+  let defaultSecretsMode;
   const diagnostics = createSlipwayRuntimeDiagnosticEmitter({
     bootstrap: slipwayConfig,
     coreUrl: shouldResolveSignedBootstrap ? signedUrls.coreUrl : void 0,
@@ -3401,9 +3532,15 @@ async function bootstrapSlipwayRuntime(options = {}) {
         setTimeoutImpl: options.setTimeoutImpl,
         bootstrap: options.bootstrap,
         requestedSecretsMode: options.secrets?.mode,
+        setDefaultSecretsMode: (mode) => {
+          defaultSecretsMode = mode;
+        },
         hasLockboxConfig: lockboxConfig !== void 0,
         setSlipwayConfig: (config) => {
           slipwayConfig = config;
+        },
+        setRuntimeEnvEnabled: (enabled) => {
+          runtimeEnvEnabled = enabled;
         },
         setLockboxConfig: (config) => {
           lockboxConfig = config;
@@ -3415,7 +3552,7 @@ async function bootstrapSlipwayRuntime(options = {}) {
     }
     diagnostics.configureBootstrap(slipwayConfig);
     failureStage = "runtime_env";
-    const secretsMode = options.secrets?.mode ?? (lockboxConfig === void 0 ? "off" : "required");
+    const secretsMode = options.secrets?.mode ?? defaultSecretsMode ?? (lockboxConfig === void 0 ? "off" : "required");
     const loggingMode = options.logging?.mode ?? "background";
     await allowBootstrapHostnames(std, [
       urlHostOrNull(slipwayConfig?.slipwayUrl),
@@ -3486,7 +3623,7 @@ async function bootstrapSlipwayRuntime(options = {}) {
       }
     });
     fatalCleanup.push(() => secrets.stop());
-    if (slipwayConfig !== void 0) {
+    if (slipwayConfig !== void 0 && runtimeEnvEnabled) {
       refreshHandle = startSlipwayRuntimeEnvRefresh({
         identityProvider,
         config: slipwayConfig,
@@ -3567,7 +3704,7 @@ async function bootstrapSlipwayRuntime(options = {}) {
           startedAtMs,
           appId: options.appId,
           revision: options.revision,
-          slipwayConfig,
+          slipwayConfig: runtimeEnvEnabled ? slipwayConfig : void 0,
           lockboxConfig,
           runtimeEnv,
           secretsStatus: secrets.status(),
@@ -3580,7 +3717,7 @@ async function bootstrapSlipwayRuntime(options = {}) {
           startedAtMs,
           appId: options.appId,
           revision: options.revision,
-          slipwayConfig,
+          slipwayConfig: runtimeEnvEnabled ? slipwayConfig : void 0,
           lockboxConfig,
           runtimeEnv,
           secretsStatus: secrets.status(),
@@ -4334,7 +4471,9 @@ function runtimeCapabilityAttrs(lookup, fetchImpl) {
     hasDeviceAddress: Boolean(getFirstRuntimeEnvValue(DEFAULT_PROCESSOR_ID_ENV_NAMES, lookup) ?? stringifyRuntimeValue3(std?.device?.getAddress?.())),
     hasEd25519Signer: typeof std?.signers?.ed25519?.sign === "function",
     hasSecp256r1Encrypt: typeof std?.signers?.secp256r1?.encrypt === "function",
-    hasSecp256r1Decrypt: typeof std?.signers?.secp256r1?.decrypt === "function"
+    hasSecp256r1Decrypt: typeof std?.signers?.secp256r1?.decrypt === "function",
+    hasSecp256k1Encrypt: typeof std?.signers?.secp256k1?.encrypt === "function",
+    hasSecp256k1Decrypt: typeof std?.signers?.secp256k1?.decrypt === "function"
   };
 }
 function runtimeBootstrapAttrs(lookup, slipwayConfig, lockboxConfig) {
@@ -4390,11 +4529,11 @@ function stringifyRuntimeValue3(value) {
   return JSON.stringify(value);
 }
 
-// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_f15215979215515ddd7379bdd6f54a67/node_modules/@proof-computer/liskov-runtime/dist/encrypted-code.js
-var import_node_crypto4 = require("node:crypto");
+// node_modules/.pnpm/@proof-computer+liskov-runtime@https+++codeload.github.com+proof-computer+liskov-runtim_77eb32227ca1c8dff0b0e8f8f253bf33/node_modules/@proof-computer/liskov-runtime/dist/encrypted-code.js
+var import_node_crypto5 = require("node:crypto");
 var import_promises2 = require("node:fs/promises");
 var import_node_module = require("node:module");
-var import_node_path3 = __toESM(require("node:path"), 1);
+var import_node_path4 = __toESM(require("node:path"), 1);
 var import_node_url = require("node:url");
 var ENCRYPTED_CODE_DOMAIN = "proof.liskov.encrypted-code.v1";
 var ENCRYPTED_CODE_KEY_ENV = "LISKOV_CODE_KEY";
@@ -4427,7 +4566,7 @@ function decryptEncryptedCode(ciphertext, key, metadata) {
   }
   const keyBytes = decodeCanonicalBase64(key, 32);
   try {
-    const decipher = (0, import_node_crypto4.createDecipheriv)("aes-256-gcm", keyBytes, decodeCanonicalBase64(descriptor.iv, 12));
+    const decipher = (0, import_node_crypto5.createDecipheriv)("aes-256-gcm", keyBytes, decodeCanonicalBase64(descriptor.iv, 12));
     decipher.setAAD(encryptedCodeAad(descriptor));
     decipher.setAuthTag(decodeCanonicalBase64(descriptor.authTag, 16));
     const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
@@ -4466,8 +4605,8 @@ async function startEncryptedApplication(input) {
     plaintext = decryptEncryptedCode(ciphertext, runtime.env.require(ENCRYPTED_CODE_KEY_ENV), descriptor);
     phase = "directory";
     await (0, import_promises2.mkdir)(runtime.home, { recursive: true, mode: 448 });
-    directory = await (0, import_promises2.mkdtemp)(import_node_path3.default.join(runtime.home, "encrypted-code-"));
-    filename = import_node_path3.default.resolve(directory, "application.cjs");
+    directory = await (0, import_promises2.mkdtemp)(import_node_path4.default.join(runtime.home, "encrypted-code-"));
+    filename = import_node_path4.default.resolve(directory, "application.cjs");
     phase = "module_write";
     await (0, import_promises2.writeFile)(filename, plaintext, { mode: 384, flag: "wx" });
     plaintext.fill(0);
@@ -4514,7 +4653,7 @@ async function startEncryptedApplication(input) {
   }
 }
 function digest(bytes) {
-  return `sha256:${(0, import_node_crypto4.createHash)("sha256").update(bytes).digest("hex")}`;
+  return `sha256:${(0, import_node_crypto5.createHash)("sha256").update(bytes).digest("hex")}`;
 }
 function decodeCanonicalBase64(value, size) {
   const bytes = Buffer.from(value, "base64");
@@ -4526,15 +4665,15 @@ function decodeCanonicalBase64(value, size) {
 
 // actions/ipfs-pin/src/encrypted-loader.ts
 async function run() {
-  const descriptor = JSON.parse(await (0, import_promises3.readFile)(import_node_path4.default.join(__dirname, "encrypted-code.json"), "utf8"));
+  const descriptor = JSON.parse(await (0, import_promises3.readFile)(import_node_path5.default.join(__dirname, "encrypted-code.json"), "utf8"));
   const runtime = await bootstrapSlipwayRuntime({
-    home: import_node_path4.default.join(__dirname, ".liskov"),
+    home: import_node_path5.default.join(__dirname, ".liskov"),
     bootstrap: { mode: "signed" },
     secrets: { mode: "required" },
     component: "encrypted-application"
   });
   try {
-    await startEncryptedApplication({ runtime, descriptor, ciphertextPath: import_node_path4.default.join(__dirname, "encrypted-code.bin") });
+    await startEncryptedApplication({ runtime, descriptor, ciphertextPath: import_node_path5.default.join(__dirname, "encrypted-code.bin") });
   } catch {
     runtime.stop();
     process.exitCode = 1;

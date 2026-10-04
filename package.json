@@ -18,7 +18,7 @@
   "dependencies": {
     "@actions/core": "^1.11.1",
     "@aws-sdk/client-s3": "^3.1096.0",
-    "@proof-computer/liskov-runtime": "github:proof-computer/liskov-runtime-js#89729b2a59d817a43fbae786bdcdcd4fce900fc3",
+    "@proof-computer/liskov-runtime": "github:proof-computer/liskov-runtime-js#c25fea688d77b78cccaa01a00d4f9fd124c8693f",
     "adm-zip": "^0.5.17"
   },
   "devDependencies": {
