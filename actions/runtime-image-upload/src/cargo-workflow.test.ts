@@ -1,10 +1,42 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { describe, it } from "node:test";
 
 import { parse } from "yaml";
 
 describe("Cargo runtime-image reusable workflow", () => {
+  it("opts into source assurance and preserves the disabled job graph", async () => {
+    const path = new URL("../../../.github/workflows/cargo-runtime-image.yml", import.meta.url);
+    const workflow = parse(await readFile(path, "utf8")) as Record<string, unknown>;
+    const call = object(object(workflow.on, "on").workflow_call, "workflow_call");
+    const input = object(object(call.inputs, "inputs")["source-assurance"], "source-assurance");
+    assert.equal(input.type, "boolean");
+    assert.equal(input.required, false);
+    assert.equal(input.default, false);
+    const jobs = object(workflow.jobs, "jobs");
+    const job = object(jobs["build-upload"], "build-upload");
+    const steps = job.steps as Array<Record<string, unknown>>;
+    const assurance = steps.find((step) => step.id === "source-assurance");
+    assert.ok(assurance);
+    assert.equal(assurance.if, "${{ inputs.source-assurance }}");
+    assert.equal(assurance.uses, "proof-computer/liskov-github-actions/actions/source-assurance@v2");
+    assert.deepEqual(assurance.with, { "working-directory": "${{ inputs.working-directory }}" });
+    assert.ok(steps.indexOf(assurance) < steps.findIndex((step) => step.id === "manifest"));
+    const jobOutputs = object(job.outputs, "job outputs");
+    for (const output of ["source-digest", "sbom-path"]) {
+      assert.equal(jobOutputs[output], `\${{ steps.source-assurance.outputs.${output} }}`);
+      assert.equal(object(object(call.outputs, "workflow outputs")[output], output).value,
+        `\${{ jobs.build-upload.outputs.${output} }}`);
+      delete jobOutputs[output];
+    }
+    job.steps = steps.filter((step) => step !== assurance);
+    // Full jobs snapshot at 6e5f75a: runners, permissions, build/compose/upload
+    // steps and all their inputs retain the existing graph when assurance is off.
+    assert.equal(createHash("sha256").update(JSON.stringify(jobs)).digest("hex"),
+      "a609b519eee3b719d0335ebd4baa5163467e69669f0e1dc7c618aad5bfbc5744");
+  });
+
   it("pins inputs, proves two builds, optionally attests, then finalizes", async () => {
     const path = new URL("../../../.github/workflows/cargo-runtime-image.yml", import.meta.url);
     const workflow = parse(await readFile(path, "utf8")) as Record<string, unknown>;

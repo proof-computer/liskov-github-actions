@@ -55,6 +55,11 @@ on:
         required: false
         type: boolean
         default: true
+      source-assurance:
+        description: "Verify the committed pnpm or Cargo CycloneDX SBOM and emit its path and ADR-0106 source digest."
+        required: false
+        type: boolean
+        default: false
       bootstrap-mode:
         required: false
         type: string
@@ -68,6 +73,10 @@ on:
         type: string
         default: "liskov-runtime-image-upload"
     outputs:
+      source-digest:
+        value: ${{ jobs.build-upload.outputs.source-digest }}
+      sbom-path:
+        value: ${{ jobs.build-upload.outputs.sbom-path }}
       image-digest:
         value: ${{ jobs.build-upload.outputs.image-digest }}
       image-byte-size:
@@ -102,6 +111,8 @@ jobs:
   build-upload:
     runs-on: ubuntu-24.04-arm
     outputs:
+      source-digest: ${{ steps.source-assurance.outputs.source-digest }}
+      sbom-path: ${{ steps.source-assurance.outputs.sbom-path }}
       image-digest: ${{ steps.upload.outputs.image-digest }}
       image-byte-size: ${{ steps.upload.outputs.image-byte-size }}
       upload-session-id: ${{ steps.upload.outputs.upload-session-id }}
@@ -116,6 +127,13 @@ jobs:
       provenance-json: ${{ steps.upload.outputs.provenance-json }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Source assurance (SBOM + source digest)
+        id: source-assurance
+        if: ${{ inputs.source-assurance }}
+        uses: proof-computer/liskov-github-actions/actions/source-assurance@v2
+        with:
+          working-directory: ${{ inputs.working-directory }}
 
       - name: Validate locked Cargo inputs and pinned toolchain
         id: toolchain
