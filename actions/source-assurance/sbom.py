@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate a CycloneDX SBOM for a pnpm workspace from its lockfile.
+"""Generate a CycloneDX SBOM from a pnpm or Cargo lockfile.
 
 ADR-0106 requires every public Marketplace version to identify its third-party
 dependencies and their licences. The lockfile is the right input: it is what the
@@ -133,6 +133,36 @@ def build_document(manifest: dict, packages: list[dict[str, str]]) -> dict:
     }
 
 
+def build_cargo_document(root: Path) -> dict:
+    """Record Cargo's resolved packages without inferring licences or hashes."""
+    import tomllib
+
+    lock = tomllib.loads((root / "Cargo.lock").read_text())
+    manifest_path = root / "Cargo.toml"
+    manifest = tomllib.loads(manifest_path.read_text()) if manifest_path.is_file() else {}
+    package = manifest.get("package", {})
+    # Workspace-inherited versions are tables, not resolved version strings.
+    metadata = {
+        key: package[key] for key in ("name", "version")
+        if isinstance(package.get(key), str)
+    }
+    document = build_document(metadata, [])
+    for package in sorted(lock.get("package", []), key=lambda p: (p["name"], p["version"])):
+        component = {
+            "type": "library",
+            "name": package["name"],
+            "version": package["version"],
+            "purl": f"pkg:cargo/{package['name']}@{package['version']}",
+            "scope": "required",
+        }
+        source = package.get("source", "")
+        checksum = package.get("checksum")
+        if source.startswith("registry+") and checksum is not None:
+            component["hashes"] = [{"alg": "SHA-256", "content": checksum}]
+        document["components"].append(component)
+    return document
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--directory", default=".", help="app directory")
@@ -141,13 +171,15 @@ def main() -> int:
 
     root = Path(args.directory)
     lock = root / "pnpm-lock.yaml"
-    if not lock.is_file():
-        print(f"no pnpm-lock.yaml in {root}", file=sys.stderr)
+    if lock.is_file():
+        manifest_path = root / "package.json"
+        manifest = json.loads(manifest_path.read_text()) if manifest_path.is_file() else {}
+        document = build_document(manifest, parse_packages(lock.read_text()))
+    elif (root / "Cargo.lock").is_file():
+        document = build_cargo_document(root)
+    else:
+        print(f"no pnpm-lock.yaml or Cargo.lock in {root}", file=sys.stderr)
         return 2
-    manifest_path = root / "package.json"
-    manifest = json.loads(manifest_path.read_text()) if manifest_path.is_file() else {}
-
-    document = build_document(manifest, parse_packages(lock.read_text()))
     out = root / args.out
     # Deterministic bytes: the SBOM is part of a digested snapshot, so the same
     # inputs must always produce the same file.

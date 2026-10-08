@@ -196,7 +196,29 @@ jobs:
       base-attestation-source-digest: <exact source commit>
       base-attestation-signer-workflow: proof-computer/liskov-runtime-images/.github/workflows/ci.yml
       attest-runtime-image: false # optional; defaults to true
+      source-assurance: true # optional; defaults to false
 ```
+
+With `source-assurance: true`, the workflow regenerates and verifies the
+committed `sbom.cdx.json` in `working-directory` before building. It exposes
+`source-digest` (`git-tree:<sha>` of that directory at `HEAD`) and `sbom-path`
+(`sbom.cdx.json`, relative to that directory) for the Marketplace descriptor's
+`sourceAssurance.sourceDigest` and `sourceAssurance.sbomRef`. Both outputs are
+empty when the input is omitted or false.
+
+Generate the SBOM locally with Python 3.11 or newer and commit it alongside
+the source before enabling assurance:
+
+```sh
+python3 <actions-checkout>/actions/source-assurance/sbom.py --directory <app-dir>
+```
+
+The generator uses `pnpm-lock.yaml` when present, otherwise `Cargo.lock`.
+Cargo registry crates carry `pkg:cargo/<name>@<version>` package URLs and
+their lockfile SHA-256 checksums; path and git crates carry no hash. Output is
+deterministic, and existing pnpm output is byte-for-byte unchanged. The
+generator records only lockfile facts; it does not infer dependency licences
+or replace the separate third-party licence inventory required by ADR-0106.
 
 ## À-la-carte actions
 
@@ -212,6 +234,7 @@ Compose your own job from these (`uses: proof-computer/liskov-github-actions/act
 | `policy-import` | JS | OIDC → `POST /api/applications/<id>/policy-imports/github` (import the repo's authored manifest as a draft) |
 | `runtime-image-upload` | JS | Hash → manifest-bound scoped Tigris upload → fresh-OIDC finalize |
 | `cargo-runtime-image-build` | composite + Python | Safely overlay one static AArch64 binary and emit a normalized helperless-rootfs-derived `tar.xz` |
+| `source-assurance` | composite + Python | Verify a committed pnpm or Cargo CycloneDX SBOM → relative `sbom-path` and git-tree `source-digest` |
 
 ## Versioning
 

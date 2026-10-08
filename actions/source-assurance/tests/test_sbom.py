@@ -85,5 +85,91 @@ class SbomTests(unittest.TestCase):
         self.assertEqual(names, sorted(names))
 
 
+class CargoSbomTests(unittest.TestCase):
+    LOCKFILE = '''version = 4
+
+[[package]]
+name = "serde"
+version = "1.0.228"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
+[[package]]
+name = "local-app"
+version = "0.1.0"
+
+[[package]]
+name = "git-helper"
+version = "0.2.0"
+source = "git+https://example.com/helper?rev=abc#abc"
+'''
+
+    def _run(self, root: Path):
+        import subprocess
+        import sys
+
+        return subprocess.run(
+            [sys.executable, str(MODULE_PATH), "--directory", str(root)],
+            capture_output=True, text=True,
+        )
+
+    def test_cargo_components_and_bytes_are_deterministic(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "Cargo.lock").write_text(self.LOCKFILE)
+            (root / "Cargo.toml").write_text('[package]\nname = "local-app"\nversion = "0.1.0"\n')
+            self.assertEqual(self._run(root).returncode, 0)
+            first = (root / "sbom.cdx.json").read_bytes()
+            self.assertEqual(self._run(root).returncode, 0)
+            self.assertEqual(first, (root / "sbom.cdx.json").read_bytes())
+            document = json.loads(first)
+            self.assertEqual(document["bomFormat"], "CycloneDX")
+            self.assertEqual(document["metadata"]["component"]["name"], "local-app")
+            self.assertEqual(document["components"], [
+                {"type": "library", "scope": "required", "name": "git-helper",
+                 "version": "0.2.0", "purl": "pkg:cargo/git-helper@0.2.0"},
+                {"type": "library", "scope": "required", "name": "local-app",
+                 "version": "0.1.0", "purl": "pkg:cargo/local-app@0.1.0"},
+                {"type": "library", "scope": "required", "name": "serde",
+                 "version": "1.0.228", "purl": "pkg:cargo/serde@1.0.228",
+                 "hashes": [{"alg": "SHA-256", "content": "0123456789abcdef" * 4}]},
+            ])
+
+    def test_pnpm_bytes_are_preserved_even_with_a_cargo_lockfile(self) -> None:
+        import hashlib
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "pnpm-lock.yaml").write_text(LOCKFILE)
+            (root / "package.json").write_text(json.dumps(
+                {"name": "@proof-computer/uptime-prober", "version": "0.0.0"}
+            ))
+            self.assertEqual(self._run(root).returncode, 0)
+            original = (root / "sbom.cdx.json").read_bytes()
+            # Frozen from the original generator at 6e5f75a, including whitespace.
+            self.assertEqual(hashlib.sha256(original).hexdigest(),
+                             "f4ff9e500f218c6da6b1d974c97f411a71e85d2bea331775f0f73a1681fa6ab0")
+            (root / "Cargo.lock").write_text("invalid TOML must not be parsed")
+            self.assertEqual(self._run(root).returncode, 0)
+            self.assertEqual(original, (root / "sbom.cdx.json").read_bytes())
+
+    def test_neither_lockfile_exits_two_without_writing(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            result = self._run(root)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("no pnpm-lock.yaml or Cargo.lock", result.stderr)
+            self.assertFalse((root / "sbom.cdx.json").exists())
+
+    def test_workspace_metadata_does_not_emit_an_inherited_version_table(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "Cargo.lock").write_text(self.LOCKFILE)
+            (root / "Cargo.toml").write_text('[package]\nname = "local-app"\nversion.workspace = true\n')
+            self.assertEqual(self._run(root).returncode, 0)
+            document = json.loads((root / "sbom.cdx.json").read_text())
+            self.assertIsInstance(document["metadata"]["component"]["version"], str)
+
+
 if __name__ == "__main__":
     unittest.main()

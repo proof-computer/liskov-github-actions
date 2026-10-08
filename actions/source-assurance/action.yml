@@ -10,6 +10,9 @@ inputs:
     required: false
     default: "sbom.cdx.json"
 outputs:
+  sbom-path:
+    description: "Verified SBOM filename, relative to working-directory, for sourceAssurance.sbomRef."
+    value: ${{ steps.assure.outputs.sbom-path }}
   source-digest:
     description: "git-tree:<sha> of the working-directory subtree at HEAD — the value sourceAssurance.sourceDigest must carry."
     value: ${{ steps.assure.outputs.source-digest }}
@@ -23,25 +26,30 @@ runs:
     - id: assure
       shell: bash
       env:
-        WORKING_DIRECTORY: ${{ inputs.working-directory }}
-        SBOM_PATH: ${{ inputs.sbom-path }}
+        LISKOV_WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        LISKOV_SBOM_PATH: ${{ inputs.sbom-path }}
       run: |
         set -euo pipefail
         python3 "${GITHUB_ACTION_PATH}/sbom.py" \
-          --directory "${WORKING_DIRECTORY}" --out "${SBOM_PATH}"
+          --directory "${LISKOV_WORKING_DIRECTORY}" --out "${LISKOV_SBOM_PATH}"
         # The SBOM lives inside the digested snapshot, so a stale committed copy
         # would mean the declared sourceDigest describes different bytes than
         # the dependency list a reviewer reads. Fail rather than silently fix.
-        if ! git diff --quiet -- "${WORKING_DIRECTORY}/${SBOM_PATH}"; then
-          echo "::error::${WORKING_DIRECTORY}/${SBOM_PATH} is stale; regenerate and commit it."
-          git --no-pager diff -- "${WORKING_DIRECTORY}/${SBOM_PATH}"
+        if ! git ls-files --error-unmatch -- "${LISKOV_WORKING_DIRECTORY}/${LISKOV_SBOM_PATH}" > /dev/null; then
+          echo "::error::Commit ${LISKOV_WORKING_DIRECTORY}/${LISKOV_SBOM_PATH} before requesting source assurance."
           exit 1
         fi
-        digest="git-tree:$(git rev-parse "HEAD:${WORKING_DIRECTORY}")"
+        if ! git diff --quiet HEAD -- "${LISKOV_WORKING_DIRECTORY}/${LISKOV_SBOM_PATH}"; then
+          echo "::error::${LISKOV_WORKING_DIRECTORY}/${LISKOV_SBOM_PATH} is stale; regenerate and commit it."
+          git --no-pager diff HEAD -- "${LISKOV_WORKING_DIRECTORY}/${LISKOV_SBOM_PATH}"
+          exit 1
+        fi
+        digest="git-tree:$(git rev-parse "HEAD:./${LISKOV_WORKING_DIRECTORY}")"
         echo "source-digest=${digest}" >> "$GITHUB_OUTPUT"
+        echo "sbom-path=${LISKOV_SBOM_PATH}" >> "$GITHUB_OUTPUT"
         {
           echo "### Marketplace source assurance"
           echo
           echo "- \`sourceAssurance.sourceDigest\`: \`${digest}\`"
-          echo "- \`sourceAssurance.sbomRef\`: \`${SBOM_PATH}\`"
+          echo "- \`sourceAssurance.sbomRef\`: \`${LISKOV_SBOM_PATH}\`"
         } >> "$GITHUB_STEP_SUMMARY"
