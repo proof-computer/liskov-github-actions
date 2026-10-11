@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       manifest-path:
-        description: "Repo-relative authored V4 runtime-image manifest."
+        description: "Repo-relative V5 source document (`release.mode: source`, `runtime.kind: native_image`)."
         required: true
         type: string
       working-directory:
@@ -101,6 +101,20 @@ on:
         value: ${{ jobs.build-upload.outputs.cleanup-status }}
       provenance-json:
         value: ${{ jobs.build-upload.outputs.provenance-json }}
+      artifact-digest:
+        value: ${{ jobs.build-upload.outputs.artifact-digest }}
+      source-repository:
+        value: ${{ jobs.build-upload.outputs.source-repository }}
+      source-ref:
+        value: ${{ jobs.build-upload.outputs.source-ref }}
+      source-commit:
+        value: ${{ jobs.build-upload.outputs.source-commit }}
+      source-workflow-identity:
+        value: ${{ jobs.build-upload.outputs.source-workflow-identity }}
+      binding-revision:
+        value: ${{ jobs.build-upload.outputs.binding-revision }}
+      revocation-epoch:
+        value: ${{ jobs.build-upload.outputs.revocation-epoch }}
 
 permissions:
   attestations: write
@@ -125,6 +139,13 @@ jobs:
       auto-published: ${{ steps.upload.outputs.auto-published }}
       cleanup-status: ${{ steps.upload.outputs.cleanup-status }}
       provenance-json: ${{ steps.upload.outputs.provenance-json }}
+      artifact-digest: ${{ steps.upload.outputs.artifact-digest }}
+      source-repository: ${{ steps.upload.outputs.source-repository }}
+      source-ref: ${{ steps.upload.outputs.source-ref }}
+      source-commit: ${{ steps.upload.outputs.source-commit }}
+      source-workflow-identity: ${{ steps.upload.outputs.source-workflow-identity }}
+      binding-revision: ${{ steps.upload.outputs.binding-revision }}
+      revocation-epoch: ${{ steps.upload.outputs.revocation-epoch }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
@@ -258,22 +279,13 @@ jobs:
         with:
           subject-path: ${{ runner.temp }}/cargo-runtime-image-one.tar.xz
 
-      - name: Import exact authored manifest
-        id: manifest
-        uses: proof-computer/liskov-github-actions/actions/policy-import@v2
-        with:
-          application-id: ${{ inputs.application-id }}
-          manifest-path: ${{ inputs.manifest-path }}
-          liskov-url: ${{ inputs.liskov-url }}
-
       - name: Upload and finalize manifest-bound runtime image
         id: upload
         uses: proof-computer/liskov-github-actions/actions/runtime-image-upload@v2
         with:
           application-id: ${{ inputs.application-id }}
           image-path: ${{ runner.temp }}/cargo-runtime-image-one.tar.xz
-          authored-digest: ${{ steps.manifest.outputs.authored-digest }}
-          release-intent-digest: ${{ steps.manifest.outputs.release-intent-digest }}
+          manifest-path: ${{ inputs.manifest-path }}
           bootstrap-mode: ${{ inputs.bootstrap-mode }}
           expected-sha256: ${{ steps.image-one.outputs.image-sha256 }}
           liskov-url: ${{ inputs.liskov-url }}

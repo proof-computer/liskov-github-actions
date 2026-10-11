@@ -5,6 +5,16 @@ import { describe, it } from "node:test";
 
 import { parse } from "yaml";
 
+const SOURCE_OUTPUTS = [
+  "artifact-digest",
+  "source-repository",
+  "source-ref",
+  "source-commit",
+  "source-workflow-identity",
+  "binding-revision",
+  "revocation-epoch"
+];
+
 describe("Cargo runtime-image reusable workflow", () => {
   it("opts into source assurance and preserves the disabled job graph", async () => {
     const path = new URL("../../../.github/workflows/cargo-runtime-image.yml", import.meta.url);
@@ -22,7 +32,8 @@ describe("Cargo runtime-image reusable workflow", () => {
     assert.equal(assurance.if, "${{ inputs.source-assurance }}");
     assert.equal(assurance.uses, "proof-computer/liskov-github-actions/actions/source-assurance@v2");
     assert.deepEqual(assurance.with, { "working-directory": "${{ inputs.working-directory }}" });
-    assert.ok(steps.indexOf(assurance) < steps.findIndex((step) => step.id === "manifest"));
+    assert.equal(steps.indexOf(assurance), 1);
+    assert.ok(steps.indexOf(assurance) < steps.findIndex((step) => step.id === "upload"));
     const jobOutputs = object(job.outputs, "job outputs");
     for (const output of ["source-digest", "sbom-path"]) {
       assert.equal(jobOutputs[output], `\${{ steps.source-assurance.outputs.${output} }}`);
@@ -31,10 +42,13 @@ describe("Cargo runtime-image reusable workflow", () => {
       delete jobOutputs[output];
     }
     job.steps = steps.filter((step) => step !== assurance);
-    // Full jobs snapshot at 6e5f75a: runners, permissions, build/compose/upload
-    // steps and all their inputs retain the existing graph when assurance is off.
+    // Full jobs snapshot recomputed by BKLG-20261008-v5rb on top of 3a3dded
+    // (whose snapshot was a609b519…, the graph at 6e5f75a): that graph minus the
+    // policy-import step, with the upload step taking `manifest-path` in place
+    // of the two V4 digests and seven more job outputs. Runners, permissions
+    // and every build/compose step are unchanged when assurance is off.
     assert.equal(createHash("sha256").update(JSON.stringify(jobs)).digest("hex"),
-      "a609b519eee3b719d0335ebd4baa5163467e69669f0e1dc7c618aad5bfbc5744");
+      "feeb613731bb0e8683ed96fa2b302eedc00ca635c9405d2f0bfb2cdb06647602");
   });
 
   it("pins inputs, proves two builds, optionally attests, then finalizes", async () => {
@@ -56,10 +70,10 @@ describe("Cargo runtime-image reusable workflow", () => {
     const build = names.indexOf("Build the static AArch64 MUSL binary twice");
     const compare = names.indexOf("Require identical image digests");
     const attest = names.indexOf("Attest deterministic Cargo runtime image");
-    const manifest = names.indexOf("Import exact authored manifest");
     const upload = names.indexOf("Upload and finalize manifest-bound runtime image");
     assert.ok(locked >= 0 && base > locked && build > base);
-    assert.ok(compare > build && attest > compare && manifest > attest && upload > manifest);
+    assert.ok(compare > build && attest > compare && upload > attest);
+    assert.equal(upload, steps.length - 1);
     assert.match(String(steps[locked]?.run), /Cargo\.lock/u);
     assert.match(String(steps[locked]?.run), /pin an exact version or dated channel/u);
     assert.match(String(steps[base]?.run), /gh attestation verify/u);
@@ -75,6 +89,44 @@ describe("Cargo runtime-image reusable workflow", () => {
       steps[upload]?.uses,
       "proof-computer/liskov-github-actions/actions/runtime-image-upload@v2"
     );
+  });
+
+  it("uploads the V5 source document, imports nothing, and returns its evidence", async () => {
+    const path = new URL("../../../.github/workflows/cargo-runtime-image.yml", import.meta.url);
+    const workflow = parse(await readFile(path, "utf8")) as Record<string, unknown>;
+    const workflowCall = object(object(workflow.on, "on").workflow_call, "workflow_call");
+    const manifestPath = object(object(workflowCall.inputs, "inputs")["manifest-path"], "manifest-path");
+    assert.equal(manifestPath.required, true);
+    assert.equal(
+      manifestPath.description,
+      "Repo-relative V5 source document (`release.mode: source`, `runtime.kind: native_image`)."
+    );
+    const job = object(object(workflow.jobs, "jobs")["build-upload"], "build-upload");
+    const steps = job.steps as Array<Record<string, unknown>>;
+    assert.equal(steps.some((step) => step.id === "manifest"), false);
+    assert.equal(steps.some((step) => step.name === "Import exact authored manifest"), false);
+    assert.equal(steps.some((step) => String(step.uses ?? "").includes("policy-import")), false);
+    const upload = steps.find((step) => step.id === "upload");
+    assert.deepEqual(upload?.with, {
+      "application-id": "${{ inputs.application-id }}",
+      "image-path": "${{ runner.temp }}/cargo-runtime-image-one.tar.xz",
+      "manifest-path": "${{ inputs.manifest-path }}",
+      "bootstrap-mode": "${{ inputs.bootstrap-mode }}",
+      "expected-sha256": "${{ steps.image-one.outputs.image-sha256 }}",
+      "liskov-url": "${{ inputs.liskov-url }}",
+      audience: "${{ inputs.audience }}"
+    });
+    const jobOutputs = object(job.outputs, "job outputs");
+    const workflowOutputs = object(workflowCall.outputs, "workflow outputs");
+    assert.deepEqual(Object.keys(jobOutputs), Object.keys(workflowOutputs));
+    assert.deepEqual(Object.keys(jobOutputs).slice(-SOURCE_OUTPUTS.length), SOURCE_OUTPUTS);
+    for (const output of SOURCE_OUTPUTS) {
+      assert.equal(jobOutputs[output], `\${{ steps.upload.outputs.${output} }}`);
+      assert.equal(
+        object(workflowOutputs[output], output).value,
+        `\${{ jobs.build-upload.outputs.${output} }}`
+      );
+    }
   });
 });
 

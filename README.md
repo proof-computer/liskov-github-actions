@@ -109,7 +109,7 @@ requires the Application to already be bound to THIS repository, pins the record
 `source.commit` from the **verified** `sha` claim (auto-imports are commit-pinned by
 construction), and imports a draft. Publication and artifact selection are separate.
 
-### `runtime-image.yml` — manifest import → scoped image upload → bootstrap
+### `runtime-image.yml` — V5 source document → scoped image upload → bootstrap
 
 ```yaml
 on:
@@ -123,7 +123,7 @@ jobs:
     uses: proof-computer/liskov-github-actions/.github/workflows/runtime-image.yml@v2
     with:
       application-id: my-app
-      manifest-path: .liskov/my-app.json
+      manifest-path: .liskov/my-app.v5.json   # V5 source document
       image-url: ${{ inputs.image_url }}
       expected-sha256: ${{ inputs.expected_sha256 }}
       attestation-repository: proof-computer/liskov-runtime-images
@@ -131,20 +131,58 @@ jobs:
       attestation-signer-workflow: proof-computer/liskov-runtime-images/.github/workflows/ci.yml
 ```
 
-Downloads the supplied image and locally verifies its SHA-256 before any import
-or upload. When `attestation-repository`, `attestation-source-digest`, and
+Downloads the supplied image and locally verifies its SHA-256 before any
+upload. When `attestation-repository`, `attestation-source-digest`, and
 `attestation-signer-workflow` are supplied, the workflow requires
 `expected-sha256` and verifies the downloaded file's GitHub artifact attestation
 against that exact source commit and signer workflow before any state-changing
 step. The three attestation inputs are all-or-none. Omitting all three preserves
 the existing unattested direct-URL migration/debug path.
 
-The workflow then imports the exact V4 runtime-image build manifest and passes the server-authoritative
-`authoredDigest` and `releaseIntentDigest` to a scoped upload action. Liskov verifies
-that exact binding before creating one-object Tigris credentials; the action uploads
-without exposing the credentials, remints OIDC, finalizes, and returns the image,
-bootstrap, artifact-version, cleanup, and safe provenance outputs. Set `liskov-url`
-to use the same custom Liskov base for both import and upload.
+`manifest-path` is a repo-relative **V5 source document** (`release.mode: source`,
+`runtime.kind: native_image`) whose `applicationId` is `application-id`. The workflow
+imports nothing. The scoped upload action validates the document with the bundled
+policy client and opens the upload session with the document itself and its path.
+Liskov fences the verified GitHub OIDC identity against the Application's current
+source binding before creating one-object Tigris credentials, and the action
+requires the session to echo the authored digest it computed and the manifest path
+before any byte is uploaded. It then uploads without exposing the credentials,
+remints OIDC, finalizes, and returns the image, bootstrap, artifact-version,
+cleanup, and safe provenance outputs. Set `liskov-url` to use a custom Liskov base.
+
+Finalizing publishes nothing (`auto-published` is `false`). The workflow returns
+the build evidence a V5 `release.mode: source` publication supplies:
+
+| Output | Publish flag |
+| --- | --- |
+| `artifact-digest` (the bootstrap bundle digest) | `--artifact-digest` |
+| `binding-revision` | `--binding-revision` |
+| `revocation-epoch` | `--revocation-epoch` |
+| `source-ref` | `--source-ref` |
+| `source-commit` | `--source-commit` |
+| `source-workflow-identity` | `--workflow-identity` |
+| `source-repository` | (the repository the binding verified) |
+
+Publish the same document with that evidence:
+
+```sh
+proof liskov application policy publish <app> --file <document> \
+  --artifact-digest <artifact-digest> \
+  --binding-revision <binding-revision> --revocation-epoch <revocation-epoch> \
+  --source-ref <source-ref> --source-commit <source-commit> \
+  --workflow-identity <source-workflow-identity> \
+  --expected-pointer-version <n> --yes
+```
+
+or publish a `release.mode: pinned` document that names `artifact-digest`.
+
+The Application must already carry a source binding for this repository, ref,
+workflow and manifest path (`proof liskov application source-binding set`). This
+V5 path needs a Liskov server that accepts the
+`proof.liskov.runtime-image-source-upload-session.v1` domain. **`@v1` keeps the V4
+import path** (`policy-import`, then an upload bound to the imported digest pair)
+until V4 import closes; a caller that still builds from a V4 manifest stays on
+`@v1` and moves to `@v2` together with a V5 document.
 
 ### `cargo-runtime-image.yml` — locked Rust build → deterministic image → upload
 
@@ -157,14 +195,19 @@ each build at the declared absolute path, normalizes the rootfs archive, rejects
 any embedded `liskov-runtime-contact`, and requires both complete images to
 have the same digest and bytes.
 
-Only after that proof does the workflow optionally attest the generated image,
-import the exact authored manifest, and invoke the existing scoped
-upload/finalization action. Generated-image attestation defaults on. Set
+Only after that proof does the workflow optionally attest the generated image
+and invoke the scoped upload/finalization action with the V5 source document
+at `manifest-path` (`release.mode: source`, `runtime.kind: native_image`). It
+imports nothing, and returns the same publication evidence and takes the same
+publish command as [`runtime-image.yml`](#runtime-imageyml--v5-source-document--scoped-image-upload--bootstrap):
+`artifact-digest`, `source-repository`, `source-ref`, `source-commit`,
+`source-workflow-identity`, `binding-revision` and `revocation-epoch`. `@v1`
+keeps the V4 import path until V4 import closes. Generated-image attestation defaults on. Set
 `attest-runtime-image: false` when GitHub artifact attestations are unavailable,
 including private repositories whose organization plan does not provide them.
 This skips only publication of GitHub build provenance for the derived image:
 Liskov still verifies the caller's GitHub OIDC identity and binds the exact
-Application, manifest digest pair, source commit, workflow, and image digest.
+Application, source document, source commit, workflow, and image digest.
 The base image remains digest- and attestation-verified in both modes.
 GitHub requires the caller to grant every permission declared by a reusable
 workflow, so callers must retain `attestations: write` even when this input is
@@ -186,7 +229,7 @@ jobs:
     uses: proof-computer/liskov-github-actions/.github/workflows/cargo-runtime-image.yml@v2
     with:
       application-id: rust-hello-world
-      manifest-path: .liskov/rust-hello-world.policy.json
+      manifest-path: .liskov/rust-hello-world.v5.json # V5 source document
       working-directory: rust-hello-world
       binary-name: rust-hello-world
       install-path: /usr/local/bin/rust-hello-world
@@ -232,7 +275,7 @@ Compose your own job from these (`uses: proof-computer/liskov-github-actions/act
 | `artifact-pin-attest` | JS | OIDC → one or more manifest-bound `POST /api/applications/<id>/artifact-pins/github` calls |
 | `marketplace-ingest` | JS | OIDC → `POST /api/marketplace/ingest` |
 | `policy-import` | JS | OIDC → `POST /api/applications/<id>/policy-imports/github` (import the repo's authored manifest as a draft) |
-| `runtime-image-upload` | JS | Hash → manifest-bound scoped Tigris upload → fresh-OIDC finalize |
+| `runtime-image-upload` | JS | Hash → scoped Tigris upload bound to a V5 source document (`manifest-path`) → fresh-OIDC finalize → publication evidence outputs. The `authored-digest` + `release-intent-digest` inputs are the V4 mode, mutually exclusive with `manifest-path` and removed when V4 import closes |
 | `cargo-runtime-image-build` | composite + Python | Safely overlay one static AArch64 binary and emit a normalized helperless-rootfs-derived `tar.xz` |
 | `source-assurance` | composite + Python | Verify a committed pnpm or Cargo CycloneDX SBOM → relative `sbom-path` and git-tree `source-digest` |
 
@@ -267,8 +310,9 @@ Compose your own job from these (`uses: proof-computer/liskov-github-actions/act
 
 Only **no-spend** (IPFS pin), **OIDC attest/ingest**, and scoped runtime-image upload
 operations are exposed; the spend-capable `ACURAST_MNEMONIC` CLI-upload path is
-intentionally **not** ported. Runtime-image sessions require the exact imported
-manifest digest pair, and upload credentials are masked, retained only in memory,
+intentionally **not** ported. Runtime-image sessions require the exact V5 source
+document under the Application's current source binding (on `@v1`, the exact
+imported V4 manifest digest pair), and upload credentials are masked, retained only in memory,
 scoped to one object, and never emitted as outputs. The attest/ingest/upload endpoints
 are gated server-side on repository, ref, workflow, and manifest authority.
 

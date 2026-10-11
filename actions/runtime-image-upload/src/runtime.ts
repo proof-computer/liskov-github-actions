@@ -2,14 +2,25 @@ import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 
+import {
+  loadRuntimeImageSourceDocument,
+  type RuntimeImageSourceDocument
+} from "./source-document.js";
+
 export const RUNTIME_IMAGE_UPLOAD_SESSION_DOMAIN =
   "proof.liskov.runtime-image-upload-session.v1";
+export const RUNTIME_IMAGE_SOURCE_UPLOAD_SESSION_DOMAIN =
+  "proof.liskov.runtime-image-source-upload-session.v1";
 
+// Exactly one binding mode is supplied. V5 mode: `manifestPath`, the V5 source
+// document in the checkout. V4 mode: both digests of an imported V4 manifest;
+// it is removed when V4 import closes.
 export interface RuntimeImageUploadInputs {
   applicationId: string;
   imagePath: string;
-  authoredDigest: string;
-  releaseIntentDigest: string;
+  manifestPath?: string;
+  authoredDigest?: string;
+  releaseIntentDigest?: string;
   bootstrapMode?: string;
   expectedSha256?: string;
   sourceImageUrl?: string;
@@ -39,6 +50,7 @@ export interface RuntimeImageUploadDependencies {
   getOidcToken(audience: string): Promise<string>;
   postJson(url: string, token: string, body: unknown): Promise<unknown>;
   putObject(upload: RuntimeImageS3Upload): Promise<void>;
+  readFile(path: string): Promise<string>;
   mask(value: string): void;
   environment: NodeJS.ProcessEnv;
 }
@@ -56,13 +68,53 @@ export interface RuntimeImageUploadOutputs {
   "auto-published": string;
   "cleanup-status": string;
   "provenance-json": string;
+  "artifact-digest": string;
+  "source-repository": string;
+  "source-ref": string;
+  "source-commit": string;
+  "source-workflow-identity": string;
+  "binding-revision": string;
+  "revocation-epoch": string;
 }
 
 type RuntimeImageBootstrapMode = "standard" | "bridge-probe";
 
-interface ValidatedRuntimeImageUploadInputs extends RuntimeImageUploadInputs {
+type RuntimeImageBindingInputs =
+  | { mode: "v4"; authoredDigest: string; releaseIntentDigest: string }
+  | { mode: "v5"; manifestPath: string };
+
+interface ValidatedRuntimeImageUploadInputs {
+  applicationId: string;
+  imagePath: string;
+  binding: RuntimeImageBindingInputs;
   bootstrapMode: RuntimeImageBootstrapMode;
+  expectedSha256?: string;
+  sourceImageUrl?: string;
+  liskovUrl: string;
+  audience: string;
 }
+
+type SourceOutputs = Pick<
+  RuntimeImageUploadOutputs,
+  | "artifact-digest"
+  | "source-repository"
+  | "source-ref"
+  | "source-commit"
+  | "source-workflow-identity"
+  | "binding-revision"
+  | "revocation-epoch"
+>;
+
+// One output shape for both modes: V4 mode sets the V5 evidence to "".
+const NO_SOURCE_OUTPUTS: SourceOutputs = {
+  "artifact-digest": "",
+  "source-repository": "",
+  "source-ref": "",
+  "source-commit": "",
+  "source-workflow-identity": "",
+  "binding-revision": "",
+  "revocation-epoch": ""
+};
 
 export async function inspectRuntimeImage(imagePath: string): Promise<RuntimeImageInfo> {
   const imageStat = await stat(imagePath);
@@ -94,6 +146,14 @@ export async function uploadRuntimeImage(
 
   try {
     const inputs = validateInputs(rawInputs);
+    const binding = inputs.binding;
+    const source: RuntimeImageSourceDocument | undefined = binding.mode === "v5"
+      ? await loadRuntimeImageSourceDocument(
+        binding.manifestPath,
+        inputs.applicationId,
+        dependencies.readFile
+      )
+      : undefined;
     const image = await dependencies.inspectImage(inputs.imagePath);
     const expectedDigest = normalizeExpectedDigest(inputs.expectedSha256);
     if (expectedDigest && expectedDigest !== image.digest) {
@@ -105,11 +165,21 @@ export async function uploadRuntimeImage(
       inputs.liskovUrl,
       `/api/applications/${encodeURIComponent(inputs.applicationId)}/runtime-images/upload-session`
     );
-    const sessionResponse = record(await dependencies.postJson(sessionUrl, uploadToken, {
-      domain: RUNTIME_IMAGE_UPLOAD_SESSION_DOMAIN,
-      authoredDigest: inputs.authoredDigest,
-      releaseIntentDigest: inputs.releaseIntentDigest
-    }), "upload-session response");
+    const sessionBody = binding.mode === "v4"
+      ? {
+          domain: RUNTIME_IMAGE_UPLOAD_SESSION_DOMAIN,
+          authoredDigest: binding.authoredDigest,
+          releaseIntentDigest: binding.releaseIntentDigest
+        }
+      : {
+          domain: RUNTIME_IMAGE_SOURCE_UPLOAD_SESSION_DOMAIN,
+          manifestPath: source!.manifestPath,
+          document: source!.document
+        };
+    const sessionResponse = record(
+      await dependencies.postJson(sessionUrl, uploadToken, sessionBody),
+      "upload-session response"
+    );
     const uploadSession = record(sessionResponse.uploadSession, "uploadSession");
     const upload = record(sessionResponse.upload, "upload");
     const credentials = record(sessionResponse.credentials, "credentials");
@@ -118,12 +188,21 @@ export async function uploadRuntimeImage(
       requiredString(credentials.secretAccessKey, "credentials.secretAccessKey")
     );
 
-    assertEqual(uploadSession.authoredDigest, inputs.authoredDigest, "uploadSession.authoredDigest");
-    assertEqual(
-      uploadSession.releaseIntentDigest,
-      inputs.releaseIntentDigest,
-      "uploadSession.releaseIntentDigest"
-    );
+    if (binding.mode === "v4") {
+      assertEqual(uploadSession.authoredDigest, binding.authoredDigest, "uploadSession.authoredDigest");
+      assertEqual(
+        uploadSession.releaseIntentDigest,
+        binding.releaseIntentDigest,
+        "uploadSession.releaseIntentDigest"
+      );
+    } else {
+      assertEqual(uploadSession.authoredDigest, source!.authoredDigest, "uploadSession.authoredDigest");
+      assertEqual(
+        record(uploadSession.source, "uploadSession.source").manifestPath,
+        source!.manifestPath,
+        "uploadSession.source.manifestPath"
+      );
+    }
     assertEqual(uploadSession.applicationId, inputs.applicationId, "uploadSession.applicationId");
     assertEqual(uploadSession.status, "ready", "uploadSession.status");
 
@@ -162,14 +241,21 @@ export async function uploadRuntimeImage(
     const autoPublished = requiredBoolean(finalized.autoPublished, "finalize.autoPublished");
 
     assertEqual(finalizedSession.sessionId, uploadSessionId, "finalize.uploadSession.sessionId");
-    assertEqual(finalizedSession.authoredDigest, inputs.authoredDigest, "finalize.uploadSession.authoredDigest");
-    assertEqual(
-      finalizedSession.releaseIntentDigest,
-      inputs.releaseIntentDigest,
-      "finalize.uploadSession.releaseIntentDigest"
-    );
+    if (binding.mode === "v4") {
+      assertEqual(finalizedSession.authoredDigest, binding.authoredDigest, "finalize.uploadSession.authoredDigest");
+      assertEqual(
+        finalizedSession.releaseIntentDigest,
+        binding.releaseIntentDigest,
+        "finalize.uploadSession.releaseIntentDigest"
+      );
+    } else {
+      assertEqual(finalizedSession.authoredDigest, source!.authoredDigest, "finalize.uploadSession.authoredDigest");
+    }
     assertEqual(finalizedSession.digest, image.digest, "finalize.uploadSession.digest");
     assertEqual(finalizedSession.byteSize, image.byteSize, "finalize.uploadSession.byteSize");
+    const sourceOutputs = source
+      ? sourceEvidenceOutputs(finalized, artifact, source.manifestPath)
+      : NO_SOURCE_OUTPUTS;
 
     return {
       "image-digest": image.digest,
@@ -189,32 +275,81 @@ export async function uploadRuntimeImage(
       "artifact-mode": requiredString(artifact.mode, "finalize.artifact.mode"),
       "auto-published": String(autoPublished),
       "cleanup-status": requiredString(cleanup.status, "finalize.cleanup.status"),
-      "provenance-json": JSON.stringify(serverProvenance)
+      "provenance-json": JSON.stringify(serverProvenance),
+      ...sourceOutputs
     };
   } catch (error) {
     throw new Error(redactError(error, sensitive));
   }
 }
 
+// The build evidence a V5 `release.mode: source` publication supplies, read
+// from the finalize response of a session bound to a source document.
+function sourceEvidenceOutputs(
+  finalized: Record<string, unknown>,
+  artifact: Record<string, unknown>,
+  manifestPath: string
+): SourceOutputs {
+  const evidence = record(finalized.source, "finalize.source");
+  assertEqual(evidence.manifestPath, manifestPath, "finalize.source.manifestPath");
+  return {
+    "artifact-digest": requiredString(artifact.digest, "finalize.artifact.digest"),
+    "source-repository": requiredString(evidence.repository, "finalize.source.repository"),
+    "source-ref": requiredString(evidence.ref, "finalize.source.ref"),
+    "source-commit": requiredString(evidence.commit, "finalize.source.commit"),
+    "source-workflow-identity": requiredString(
+      evidence.workflowIdentity,
+      "finalize.source.workflowIdentity"
+    ),
+    "binding-revision": requiredCounter(
+      evidence.bindingRevision,
+      "finalize.source.bindingRevision"
+    ),
+    "revocation-epoch": requiredCounter(
+      evidence.revocationEpoch,
+      "finalize.source.revocationEpoch"
+    )
+  };
+}
+
 function validateInputs(input: RuntimeImageUploadInputs): ValidatedRuntimeImageUploadInputs {
   const applicationId = nonEmpty(input.applicationId, "application-id");
   const imagePath = nonEmpty(input.imagePath, "image-path");
-  const authoredDigest = contractDigest(input.authoredDigest, "authored-digest");
-  const releaseIntentDigest = contractDigest(
-    input.releaseIntentDigest,
-    "release-intent-digest"
-  );
+  const binding = validateBinding(input);
   const audience = nonEmpty(input.audience, "audience");
   const bootstrapMode = validateBootstrapMode(input.bootstrapMode);
   return {
-    ...input,
     applicationId,
     imagePath,
-    authoredDigest,
-    releaseIntentDigest,
+    binding,
     bootstrapMode,
+    expectedSha256: input.expectedSha256,
+    sourceImageUrl: input.sourceImageUrl,
     audience,
     liskovUrl: normalizedBaseUrl(input.liskovUrl)
+  };
+}
+
+function validateBinding(input: RuntimeImageUploadInputs): RuntimeImageBindingInputs {
+  const manifestPath = input.manifestPath?.trim() ?? "";
+  const authoredDigest = input.authoredDigest ?? "";
+  const releaseIntentDigest = input.releaseIntentDigest ?? "";
+  const anyDigest = authoredDigest.trim() !== "" || releaseIntentDigest.trim() !== "";
+  if (manifestPath !== "") {
+    if (anyDigest) {
+      throw new Error("manifest-path and the V4 digest inputs are mutually exclusive");
+    }
+    return { mode: "v5", manifestPath };
+  }
+  if (!anyDigest) {
+    throw new Error(
+      "exactly one of manifest-path (a V5 source document) or authored-digest with release-intent-digest (V4 mode) is required"
+    );
+  }
+  return {
+    mode: "v4",
+    authoredDigest: contractDigest(authoredDigest, "authored-digest"),
+    releaseIntentDigest: contractDigest(releaseIntentDigest, "release-intent-digest")
   };
 }
 
@@ -307,6 +442,15 @@ function requiredHttpUrl(value: unknown, field: string): string {
     throw new Error(`${field} must use http or https`);
   }
   return stringValue;
+}
+
+// A non-negative counter the server sends as a JSON number. Zero is a
+// legitimate value (a binding that was never revoked has epoch 0).
+function requiredCounter(value: unknown, field: string): string {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`${field} must be a non-negative safe integer`);
+  }
+  return String(value);
 }
 
 function requiredBoolean(value: unknown, field: string): boolean {
