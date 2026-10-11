@@ -1,4 +1,6 @@
 import { createReadStream } from "node:fs";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 
 import * as core from "@actions/core";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
@@ -15,8 +17,9 @@ async function run(): Promise<void> {
   const inputs: RuntimeImageUploadInputs = {
     applicationId: core.getInput("application-id", { required: true }),
     imagePath: core.getInput("image-path", { required: true }),
-    authoredDigest: core.getInput("authored-digest", { required: true }),
-    releaseIntentDigest: core.getInput("release-intent-digest", { required: true }),
+    manifestPath: core.getInput("manifest-path"),
+    authoredDigest: core.getInput("authored-digest"),
+    releaseIntentDigest: core.getInput("release-intent-digest"),
     bootstrapMode: core.getInput("bootstrap-mode") || "standard",
     expectedSha256: core.getInput("expected-sha256"),
     sourceImageUrl: core.getInput("source-image-url"),
@@ -28,6 +31,8 @@ async function run(): Promise<void> {
     getOidcToken: (audience) => core.getIDToken(audience),
     postJson,
     putObject,
+    readFile: (file) =>
+      readFile(path.resolve(process.env.GITHUB_WORKSPACE || process.cwd(), file), "utf8"),
     mask: (value) => core.setSecret(value),
     environment: process.env
   });

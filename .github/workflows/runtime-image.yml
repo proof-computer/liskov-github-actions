@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       manifest-path:
-        description: "Repo-relative path to the authored V4 runtime-image build manifest."
+        description: "Repo-relative V5 source document (`release.mode: source`, `runtime.kind: native_image`)."
         required: true
         type: string
       image-url:
@@ -41,7 +41,7 @@ on:
         type: string
         default: ""
       liskov-url:
-        description: "Liskov service base URL used for import and upload."
+        description: "Liskov service base URL used for the upload session and finalize."
         required: false
         type: string
         default: "https://api.liskov.proof.computer"
@@ -87,6 +87,27 @@ on:
       provenance-json:
         description: "Safe GitHub provenance JSON."
         value: ${{ jobs.upload.outputs.provenance-json }}
+      artifact-digest:
+        description: "Bootstrap bundle digest a V5 publication names."
+        value: ${{ jobs.upload.outputs.artifact-digest }}
+      source-repository:
+        description: "Verified source repository."
+        value: ${{ jobs.upload.outputs.source-repository }}
+      source-ref:
+        description: "Verified source ref."
+        value: ${{ jobs.upload.outputs.source-ref }}
+      source-commit:
+        description: "Verified source commit."
+        value: ${{ jobs.upload.outputs.source-commit }}
+      source-workflow-identity:
+        description: "Verified workflow identity."
+        value: ${{ jobs.upload.outputs.source-workflow-identity }}
+      binding-revision:
+        description: "Source-binding revision the upload was fenced against."
+        value: ${{ jobs.upload.outputs.binding-revision }}
+      revocation-epoch:
+        description: "Source-binding revocation epoch the upload was fenced against."
+        value: ${{ jobs.upload.outputs.revocation-epoch }}
 
 permissions:
   contents: read
@@ -113,6 +134,13 @@ jobs:
       auto-published: ${{ steps.upload.outputs.auto-published }}
       cleanup-status: ${{ steps.upload.outputs.cleanup-status }}
       provenance-json: ${{ steps.upload.outputs.provenance-json }}
+      artifact-digest: ${{ steps.upload.outputs.artifact-digest }}
+      source-repository: ${{ steps.upload.outputs.source-repository }}
+      source-ref: ${{ steps.upload.outputs.source-ref }}
+      source-commit: ${{ steps.upload.outputs.source-commit }}
+      source-workflow-identity: ${{ steps.upload.outputs.source-workflow-identity }}
+      binding-revision: ${{ steps.upload.outputs.binding-revision }}
+      revocation-epoch: ${{ steps.upload.outputs.revocation-epoch }}
     steps:
       - uses: actions/checkout@v4
 
@@ -206,22 +234,13 @@ jobs:
             --source-digest "${ATTESTATION_SOURCE_DIGEST}" \
             --signer-workflow "${ATTESTATION_SIGNER_WORKFLOW}"
 
-      - name: Import exact authored manifest
-        id: manifest
-        uses: proof-computer/liskov-github-actions/actions/policy-import@v2
-        with:
-          application-id: ${{ inputs.application-id }}
-          manifest-path: ${{ inputs.manifest-path }}
-          liskov-url: ${{ inputs.liskov-url }}
-
       - name: Upload and finalize manifest-bound runtime image
         id: upload
         uses: proof-computer/liskov-github-actions/actions/runtime-image-upload@v2
         with:
           application-id: ${{ inputs.application-id }}
           image-path: ${{ runner.temp }}/liskov-runtime-image.tar.zst
-          authored-digest: ${{ steps.manifest.outputs.authored-digest }}
-          release-intent-digest: ${{ steps.manifest.outputs.release-intent-digest }}
+          manifest-path: ${{ inputs.manifest-path }}
           bootstrap-mode: ${{ inputs.bootstrap-mode }}
           expected-sha256: ${{ inputs.expected-sha256 }}
           source-image-url: ${{ inputs.image-url }}

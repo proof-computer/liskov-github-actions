@@ -16,13 +16,19 @@ const OUTPUTS = [
   "artifact-mode",
   "auto-published",
   "cleanup-status",
-  "provenance-json"
+  "provenance-json",
+  "artifact-digest",
+  "source-repository",
+  "source-ref",
+  "source-commit",
+  "source-workflow-identity",
+  "binding-revision",
+  "revocation-epoch"
 ];
 
 describe("runtime-image reusable workflow", () => {
-  it("verifies optional source-bound provenance before manifest import or upload", async () => {
+  it("verifies optional source-bound provenance before the source-document upload", async () => {
     const { workflowCall, uploadJob, steps } = await loadWorkflow();
-    const manifest = steps.find((step) => step.id === "manifest");
     const upload = steps.find((step) => step.id === "upload");
     const validationIndex = steps.findIndex(
       (step) => step.name === "Validate image provenance inputs"
@@ -34,10 +40,15 @@ describe("runtime-image reusable workflow", () => {
     const attestationIndex = steps.findIndex(
       (step) => step.name === "Verify source-bound artifact attestation"
     );
-    const manifestIndex = steps.findIndex((step) => step.id === "manifest");
     const uploadIndex = steps.findIndex((step) => step.id === "upload");
 
     const inputs = object(workflowCall.inputs, "on.workflow_call.inputs");
+    const manifestPath = object(inputs["manifest-path"], "input manifest-path");
+    assert.equal(manifestPath.required, true);
+    assert.equal(
+      manifestPath.description,
+      "Repo-relative V5 source document (`release.mode: source`, `runtime.kind: native_image`)."
+    );
     const bootstrapMode = object(inputs["bootstrap-mode"], "input bootstrap-mode");
     assert.equal(bootstrapMode.required, false);
     assert.equal(bootstrapMode.default, "standard");
@@ -55,8 +66,13 @@ describe("runtime-image reusable workflow", () => {
     assert.ok(downloadIndex > validationIndex);
     assert.ok(digestIndex > downloadIndex);
     assert.ok(attestationIndex > digestIndex);
-    assert.ok(manifestIndex > attestationIndex);
-    assert.ok(uploadIndex > manifestIndex);
+    assert.ok(uploadIndex > attestationIndex);
+    // The V5 line imports nothing: no step is the V4 import, and the upload
+    // is the last step of the job.
+    assert.equal(steps.some((step) => step.id === "manifest"), false);
+    assert.equal(steps.some((step) => step.name === "Import exact authored manifest"), false);
+    assert.equal(steps.some((step) => String(step.uses ?? "").includes("policy-import")), false);
+    assert.equal(uploadIndex, steps.length - 1);
 
     const validation = String(steps[validationIndex]?.run);
     assert.match(validation, /must be supplied together/u);
@@ -76,26 +92,16 @@ describe("runtime-image reusable workflow", () => {
     assert.match(attestationRun, /--signer-workflow/u);
 
     assert.equal(
-      manifest?.uses,
-      "proof-computer/liskov-github-actions/actions/policy-import@v2"
-    );
-    assert.equal(
-      object(manifest?.with, "manifest.with")["liskov-url"],
-      "${{ inputs.liskov-url }}"
-    );
-    assert.equal(
       upload?.uses,
       "proof-computer/liskov-github-actions/actions/runtime-image-upload@v2"
     );
     const uploadWith = object(upload?.with, "upload.with");
-    assert.equal(
-      uploadWith["authored-digest"],
-      "${{ steps.manifest.outputs.authored-digest }}"
-    );
-    assert.equal(
-      uploadWith["release-intent-digest"],
-      "${{ steps.manifest.outputs.release-intent-digest }}"
-    );
+    assert.equal(uploadWith["manifest-path"], "${{ inputs.manifest-path }}");
+    assert.equal("authored-digest" in uploadWith, false);
+    assert.equal("release-intent-digest" in uploadWith, false);
+    assert.equal(uploadWith["application-id"], "${{ inputs.application-id }}");
+    assert.equal(uploadWith["expected-sha256"], "${{ inputs.expected-sha256 }}");
+    assert.equal(uploadWith["source-image-url"], "${{ inputs.image-url }}");
     assert.equal(uploadWith["liskov-url"], "${{ inputs.liskov-url }}");
     assert.equal(uploadWith.audience, "${{ inputs.audience }}");
     assert.equal(uploadWith["bootstrap-mode"], "${{ inputs.bootstrap-mode }}");
@@ -109,6 +115,26 @@ describe("runtime-image reusable workflow", () => {
       assert.equal(
         object(workflowOutputs[output], `workflow output ${output}`).value,
         `\${{ jobs.upload.outputs.${output} }}`
+      );
+    }
+  });
+
+  it("wires every output the upload action declares, and only those", async () => {
+    const { uploadJob } = await loadWorkflow();
+    const action = parse(await readFile(new URL("../action.yml", import.meta.url), "utf8")) as
+      Record<string, unknown>;
+    assert.deepEqual(Object.keys(object(action.outputs, "action outputs")), OUTPUTS);
+    assert.deepEqual(Object.keys(object(uploadJob.outputs, "jobs.upload.outputs")), OUTPUTS);
+    const actionInputs = object(action.inputs, "action inputs");
+    for (const input of ["manifest-path", "authored-digest", "release-intent-digest"]) {
+      const contract = object(actionInputs[input], `action input ${input}`);
+      assert.equal(contract.required, false);
+      assert.equal(contract.default, "");
+    }
+    for (const input of ["authored-digest", "release-intent-digest"]) {
+      assert.match(
+        String(object(actionInputs[input], input).description),
+        /^V4 mode; removed when V4 import closes/u
       );
     }
   });
