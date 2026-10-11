@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
+import { parse } from "yaml";
 
+import { requireValidPolicyManifest } from "../../shared/src/policy-contract.js";
 import { artifactPinBindings } from "./manifest.js";
 
 const manifest = {
@@ -91,6 +94,25 @@ test("retained V5 source artifacts carry no synthesized V4 digests", () => {
     }, "diagnostic-v5"),
     /runtime.kind javascript/u
   );
+});
+
+test("artifact evidence refuses valid V6 and V7 source manifests outside registered publication pairs", () => {
+  const corpus = JSON.parse(readFileSync("actions/shared/policy-client-bundle/policy-client-conformance.json", "utf8")) as {
+    valid: Array<{ name: string; request: { document: string } }>;
+  };
+  const sample = corpus.valid.find((sample) => sample.name === "v6/benchmark-js");
+  assert.ok(sample, "owner benchmark-js V6 corpus document exists");
+  for (const schemaVersion of [6, 7]) {
+    const document = { ...parse(sample.request.document), schemaVersion };
+    const result = requireValidPolicyManifest(document);
+    assert.equal((result.document?.release as Record<string, unknown>).mode, "source");
+    assert.equal((result.document?.runtime as Record<string, unknown>).kind, "javascript");
+    assert.throws(
+      () => artifactPinBindings(document, document.applicationId),
+      /the exact policy pair is not registered for source publication/u,
+      `V${schemaVersion} must be refused before artifact attestation`
+    );
+  }
 });
 
 test("artifact evidence rejects pinned or wrong-kind release arms", () => {

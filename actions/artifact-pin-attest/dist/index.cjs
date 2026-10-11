@@ -20080,6 +20080,9 @@ function requireValidPolicyManifest(manifest) {
   }
   return result;
 }
+function supportsRegisteredSourcePublication(result) {
+  return Boolean(result.pair && contract().manifest.publicationPairs.some((pair) => pair.schema === result.pair?.schema && pair.schemaVersion === result.pair?.schemaVersion && pair.releaseMode === "source"));
+}
 
 // actions/artifact-pin-attest/src/manifest.ts
 function artifactPinBindings(manifest, applicationId, encryptedCode, entrypoint) {
@@ -20090,6 +20093,9 @@ function artifactPinBindings(manifest, applicationId, encryptedCode, entrypoint)
   }
   const release = recordField(document, "release");
   if (release.mode === "source") {
+    if (!supportsRegisteredSourcePublication(result)) {
+      throw new Error("the exact policy pair is not registered for source publication");
+    }
     const runtime = recordField(document, "runtime");
     if (runtime.kind !== "javascript") {
       throw new Error("the registered IPFS artifact workflow currently requires runtime.kind javascript");
@@ -20133,7 +20139,7 @@ function artifactPinBindings(manifest, applicationId, encryptedCode, entrypoint)
 }
 function recordField(record, field) {
   const value = record[field];
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
     throw new Error(`${field} must be an object`);
   }
   return value;
