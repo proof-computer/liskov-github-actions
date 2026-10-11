@@ -1,5 +1,8 @@
 import { ENCRYPTED_CODE_KEY_ENV, parseEncryptedCodeDescriptor, type EncryptedCodeDescriptor } from "@proof-computer/liskov-runtime/encrypted-code";
-import { requireValidPolicyManifest } from "../../shared/src/policy-contract.js";
+import {
+  requireValidPolicyManifest,
+  supportsRegisteredSourcePublication
+} from "../../shared/src/policy-contract.js";
 
 export interface V4ArtifactPinBindings {
   readonly kind: "v4";
@@ -27,6 +30,9 @@ export function artifactPinBindings(
   }
   const release = recordField(document, "release");
   if (release.mode === "source") {
+    if (!supportsRegisteredSourcePublication(result)) {
+      throw new Error("the exact policy pair is not registered for source publication");
+    }
     const runtime = recordField(document, "runtime");
     if (runtime.kind !== "javascript") {
       throw new Error("the registered IPFS artifact workflow currently requires runtime.kind javascript");
@@ -77,7 +83,7 @@ function recordField(
   field: string
 ): Record<string, unknown> {
   const value = record[field];
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
     throw new Error(`${field} must be an object`);
   }
   return value as Record<string, unknown>;
