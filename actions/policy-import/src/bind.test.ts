@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
+import { parse } from "yaml";
 
 import { bindPolicyImportManifest } from "./bind.js";
+import { evaluatePolicyManifest, supportsRegisteredSourcePublication } from "../../shared/src/policy-contract.js";
 
 const env = {
   GITHUB_REPOSITORY: "proof-computer/uptime-prober",
@@ -75,4 +78,33 @@ test("V5 source import binds GitHub evidence and refuses a stale repository", ()
     }),
     /mismatched repository/u
   );
+});
+
+test("V6 country/spread draft import returns the document without source evidence", () => {
+  const corpus = JSON.parse(readFileSync("actions/shared/policy-client-bundle/policy-client-conformance.json", "utf8")) as {
+    valid: Array<{ name: string; request: { document: string } }>;
+  };
+  const sample = corpus.valid.find((sample) => sample.name === "v6/benchmark-js");
+  assert.ok(sample, "owner benchmark-js V6 corpus document exists");
+  const manifest = parse(sample.request.document);
+  manifest.deployment.jobs = 2;
+  manifest.deployment.placement = {
+    allow: [{ by: "country", values: ["DE", "CH"] }],
+    exclude: [{ by: "country", values: ["US"] }],
+    spread: [
+      { by: "manager", strength: "required" },
+      { by: "country", strength: "preferred", minimumDistinct: 2 }
+    ]
+  };
+  const result = evaluatePolicyManifest(manifest);
+  assert.equal(result.valid, true);
+  assert.equal(supportsRegisteredSourcePublication(result), false);
+  const bound = bindPolicyImportManifest({
+    manifest,
+    applicationId: "benchmark-js",
+    manifestPath: ".liskov/app.json",
+    env: {}
+  });
+  assert.deepEqual(bound, { document: manifest });
+  assert.equal(bound.sourceEvidence, undefined);
 });
