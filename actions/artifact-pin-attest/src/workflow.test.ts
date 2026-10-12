@@ -34,7 +34,8 @@ test("Acurast reusable workflow preserves defaults and wires prepared multi-targ
     "artifact-metadata-path",
     "artifact-targets-path",
     "script-ipfs",
-    // Not a secret: an empty endpoint selects the action's default no-spend proxy.
+    "organization-id",
+    // Not a secret: an empty endpoint selects Liskov upload intents.
     "ipfs-endpoint",
     "ipfs-gateway-url",
     "upload-manifest-path"
@@ -44,6 +45,9 @@ test("Acurast reusable workflow preserves defaults and wires prepared multi-targ
     assert.equal(input.default, "");
   }
   assert.equal(object(inputs.entrypoint, "entrypoint").default, "app.cjs");
+  assert.equal(object(inputs["liskov-url"], "liskov URL").default, "https://api.liskov.proof.computer");
+  assert.equal(object(inputs["liskov-url"], "liskov URL").required, false);
+  assert.equal(object(workflow.permissions, "permissions")["id-token"], "write");
   assert.equal(object(inputs["authored-manifest-path"], "authored path").required, false);
   assert.equal(object(inputs["pnpm-version"], "pnpm version").default, "");
 
@@ -68,6 +72,9 @@ test("Acurast reusable workflow preserves defaults and wires prepared multi-targ
 
   assert.equal(pin.uses, "proof-computer/liskov-github-actions/actions/ipfs-pin@v2");
   const pinWith = object(pin.with, "pin.with");
+  assert.equal(pinWith["organization-id"], "${{ inputs.organization-id }}");
+  assert.equal(pinWith["liskov-url"], "${{ inputs.liskov-url }}");
+  assert.equal(pinWith["authored-manifest-path"], "${{ inputs.authored-manifest-path }}");
   assert.equal(object(inputs["encryption-mode"], "encryption-mode").default, "none");
   assert.equal(pinWith["encryption-mode"], "${{ inputs.encryption-mode }}");
   assert.equal(pinWith["encryption-secret-id"], "${{ inputs.encryption-secret-id }}");
@@ -93,6 +100,7 @@ test("Acurast reusable workflow preserves defaults and wires prepared multi-targ
   assert.equal(object(upload.with, "upload.with").path, "${{ steps.pin.outputs.manifest-path }}");
   assert.equal(attest.uses, "proof-computer/liskov-github-actions/actions/artifact-pin-attest@v2");
   const attestWith = object(attest.with, "attest.with");
+  assert.equal(attestWith["pin-url"], "${{ inputs.pin-url }}");
   assert.equal(attestWith["targets-path"], "${{ inputs.artifact-targets-path }}");
   assert.equal(
     attestWith["application-id"],

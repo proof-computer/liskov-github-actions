@@ -1,9 +1,25 @@
 name: "Liskov Acurast IPFS pin"
-description: "Build or read exact Acurast artifact bytes, pin them through the no-spend IPFS path, optionally verify gateway bytes, and write a script manifest."
+description: "Upload exact Acurast artifact bytes through Liskov and verify gateway bytes, or use an explicit proxy, then write a script manifest. Liskov uploads require permissions: id-token: write."
 inputs:
   app-name:
-    description: "Application name (zip manifest name + script-manifest kind)."
+    description: "Liskov application ID (also zip manifest name + script-manifest kind)."
     required: true
+  organization-id:
+    description: "Liskov organization ID; non-secret configuration required on the Liskov upload path."
+    required: false
+    default: ""
+  liskov-url:
+    description: "Liskov API base URL for artifact upload intents."
+    required: false
+    default: "https://api.liskov.proof.computer"
+  audience:
+    description: "GitHub OIDC audience for Liskov artifact upload intents. Requires permissions: id-token: write."
+    required: false
+    default: "liskov-artifact-upload"
+  authored-manifest-path:
+    description: "Optional repository-relative authored policy manifest. Uses its canonical authored digest; when empty, manifest digest is sha256 of the artifact bytes."
+    required: false
+    default: ""
   working-directory:
     description: "Directory containing dist/ (and where the manifest is written)."
     required: false
@@ -39,11 +55,11 @@ inputs:
     required: false
     default: ""
   gateway-url:
-    description: "Optional credential-free HTTPS gateway URL; {cid} is replaced and fetched bytes must exactly equal the local artifact (4 attempts, 10s between attempts)."
+    description: "Override the Liskov intent's gateway template, or opt into proxy/reused byte verification. Credential-free HTTPS URL; {cid} is replaced and bytes must match (4 attempts, 10s apart)."
     required: false
     default: ""
   ipfs-endpoint:
-    description: "Override the Acurast IPFS proxy endpoint (else the default no-spend proxy). A Bearer key for it is read from the LISKOV_IPFS_API_KEY env."
+    description: "Use this Acurast-proxy endpoint instead of the Liskov upload service; a bearer key for it is read from LISKOV_IPFS_API_KEY."
     required: false
     default: ""
   manifest-name:
@@ -59,6 +75,10 @@ outputs:
     description: "Path to the written script manifest (feed to artifact-pin-attest)."
   upload-performed:
     description: "true when this run performed an IPFS upload; false when script-ipfs was reused."
+  upload-id:
+    description: "Liskov upload intent ID; empty on proxy or reused paths."
+  upload-path:
+    description: "liskov, proxy, or reused."
 runs:
   using: "node24"
   main: "dist/index.cjs"

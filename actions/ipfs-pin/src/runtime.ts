@@ -4,6 +4,8 @@ import path from "node:path";
 
 import AdmZip from "adm-zip";
 import { encryptedCodeZip, ENCRYPTED_CODE_MODE } from "./encrypted-code.js";
+import { DEFAULT_LISKOV_URL, DEFAULT_UPLOAD_AUDIENCE, requestUploadIntent } from "./liskov-upload.js";
+import { requireValidPolicyManifest } from "../../shared/src/policy-contract.js";
 
 import {
   safeRelativeArtifactPath,
@@ -19,6 +21,10 @@ export interface IpfsPinInputs {
   readonly restartPolicy: string;
   readonly endpoint: string;
   readonly apiKey: string;
+  readonly organizationId?: string;
+  readonly liskovUrl?: string;
+  readonly audience?: string;
+  readonly authoredManifestPath?: string;
   readonly artifactPath?: string;
   readonly metadataPath?: string;
   readonly scriptIpfs?: string;
@@ -33,6 +39,9 @@ export interface IpfsPinDependencies {
   readonly fetchImpl: typeof fetch;
   readonly now: () => Date;
   readonly environment: NodeJS.ProcessEnv;
+  readonly repositoryRoot?: string;
+  readonly getIdToken?: (audience: string) => Promise<string>;
+  readonly maskSecret?: (secret: string) => void;
   readonly encryptedCodeLoader?: Uint8Array;
   readonly randomBytes?: (size: number) => Uint8Array;
   readonly sleep?: (milliseconds: number) => Promise<void>;
@@ -43,6 +52,8 @@ export interface IpfsPinResult {
   readonly digest: string;
   readonly manifestPath: string;
   readonly uploadPerformed: boolean;
+  readonly uploadId: string;
+  readonly uploadPath: "liskov" | "proxy" | "reused";
   readonly manifest: JsonRecord;
 }
 
@@ -84,16 +95,52 @@ export async function runIpfsPin(
     : undefined;
 
   const suppliedCid = inputs.scriptIpfs?.trim();
-  const scriptIpfs = suppliedCid
-    ? validateScriptIpfs(suppliedCid)
-    : await uploadArtifact(artifactBytes, inputs, dependencies.fetchImpl);
+  let scriptIpfs: string;
+  let uploadId = "";
+  let uploadPath: IpfsPinResult["uploadPath"];
+  let gatewayUrl = inputs.gatewayUrl?.trim();
+  if (suppliedCid) {
+    scriptIpfs = validateScriptIpfs(suppliedCid);
+    uploadPath = "reused";
+  } else if (inputs.endpoint.trim()) {
+    scriptIpfs = await uploadArtifact(artifactBytes, inputs, dependencies.fetchImpl);
+    uploadPath = "proxy";
+  } else {
+    let manifestDigest = `sha256:${artifactSha256}`;
+    if (inputs.authoredManifestPath?.trim()) {
+      const manifestPath = resolveWithin(dependencies.repositoryRoot ?? root,
+        inputs.authoredManifestPath, "authored-manifest-path");
+      const evaluated = requireValidPolicyManifest(JSON.parse(await readFile(manifestPath, "utf8")));
+      if (evaluated.authoredDigest === undefined) throw new Error("authored manifest digest is missing");
+      manifestDigest = `sha256:${evaluated.authoredDigest}`;
+    }
+    if (dependencies.getIdToken === undefined) throw new Error("Liskov uploads require a GitHub OIDC token provider");
+    const intent = await requestUploadIntent({
+      liskovUrl: inputs.liskovUrl ?? DEFAULT_LISKOV_URL,
+      organizationId: inputs.organizationId ?? "",
+      applicationId: inputs.appName,
+      audience: inputs.audience ?? DEFAULT_UPLOAD_AUDIENCE,
+      sha256: artifactSha256,
+      byteSize: artifactBytes.length,
+      manifestDigest,
+      encryptionMode: mode
+    }, { getIdToken: dependencies.getIdToken, fetchImpl: dependencies.fetchImpl });
+    dependencies.maskSecret?.(intent.token);
+    scriptIpfs = await uploadArtifact(artifactBytes, {
+      endpoint: intent.upload.url.slice(0, -"/pinning/pinFileToIPFS".length),
+      apiKey: intent.token
+    }, dependencies.fetchImpl);
+    uploadId = intent.uploadId;
+    uploadPath = "liskov";
+    gatewayUrl ||= intent.gatewayUrlTemplate;
+  }
   const uploadPerformed = !suppliedCid;
 
-  if (inputs.gatewayUrl?.trim()) {
+  if (gatewayUrl) {
     await verifyGatewayBytes(
       artifactBytes,
       scriptIpfs,
-      inputs.gatewayUrl.trim(),
+      gatewayUrl,
       dependencies.fetchImpl,
       dependencies.sleep
     );
@@ -137,6 +184,8 @@ export async function runIpfsPin(
     digest: `sha256:${artifactSha256}`,
     manifestPath,
     uploadPerformed,
+    uploadId,
+    uploadPath,
     manifest
   };
 }
@@ -170,7 +219,7 @@ async function generatedZip(root: string, inputs: IpfsPinInputs): Promise<Buffer
 
 async function uploadArtifact(
   artifactBytes: Buffer,
-  inputs: IpfsPinInputs,
+  inputs: Pick<IpfsPinInputs, "endpoint" | "apiKey">,
   fetchImpl: typeof fetch
 ): Promise<string> {
   const endpoint = inputs.endpoint.replace(/\/+$/u, "");
@@ -182,15 +231,22 @@ async function uploadArtifact(
   );
   form.append("pinataOptions", JSON.stringify({ cidVersion: 0 }));
   form.append("pinataMetadata", JSON.stringify({ name: "script.js" }));
-  const response = await fetchImpl(`${endpoint}/pinning/pinFileToIPFS`, {
-    method: "POST",
-    headers: inputs.apiKey ? { authorization: `Bearer ${inputs.apiKey}` } : undefined,
-    body: form
-  });
-  const text = await response.text();
-  if (!response.ok) throw new Error(`IPFS upload failed (${response.status}): ${redact(text)}`);
+  let response: Response;
+  try {
+    response = await fetchImpl(`${endpoint}/pinning/pinFileToIPFS`, {
+      method: "POST",
+      headers: inputs.apiKey ? { authorization: `Bearer ${inputs.apiKey}` } : undefined,
+      body: form
+    });
+  } catch {
+    throw new Error("IPFS upload request failed");
+  }
+  let text: string;
+  try { text = await response.text(); } catch { throw new Error("IPFS upload response could not be read"); }
+  const safeText = inputs.apiKey ? text.replaceAll(inputs.apiKey, "[redacted]") : text;
+  if (!response.ok) throw new Error(`IPFS upload failed (${response.status}): ${redact(safeText)}`);
   const cid = parseCid(text);
-  if (!cid) throw new Error(`IPFS upload response missing IpfsHash: ${redact(text)}`);
+  if (!cid) throw new Error(`IPFS upload response missing IpfsHash: ${redact(safeText)}`);
   return `ipfs://${cid}`;
 }
 
