@@ -6,10 +6,11 @@ name: Acurast app — build, pin, attest
 #   jobs:
 #     artifact:
 #       uses: proof-computer/liskov-github-actions/.github/workflows/acurast-app.yml@v2
-#       with: { app-id: uptime-prober, working-directory: uptime-prober }
+#       with: { organization-id: your-org-id, app-id: uptime-prober, working-directory: uptime-prober }
 #
-# The default no-spend IPFS proxy needs no secret. A caller pinning to its own
-# endpoint commits it as `ipfs-endpoint` and passes only the credential:
+# The default Liskov upload service issues a per-run token from GitHub OIDC and
+# verifies bytes through PROOF's gateway. Select the Acurast proxy explicitly
+# with `ipfs-endpoint` and pass only its credential if needed:
 #
 #       with: { app-id: uptime-prober, ipfs-endpoint: "https://ipfs.example" }
 #       secrets:
@@ -47,6 +48,16 @@ on:
         description: "Liskov Application id (zip/manifest name + artifact-pin target)."
         required: true
         type: string
+      organization-id:
+        description: "Liskov organization ID; non-secret configuration required for the default Liskov upload path."
+        required: false
+        type: string
+        default: ""
+      liskov-url:
+        description: "Liskov API base URL for artifact upload intents; pin-url remains the attestation override."
+        required: false
+        type: string
+        default: "https://api.liskov.proof.computer"
       working-directory:
         description: "App directory."
         required: false
@@ -106,7 +117,7 @@ on:
         type: string
         default: ""
       ipfs-endpoint:
-        description: "IPFS pinning endpoint; empty uses the default no-spend proxy. Not a secret."
+        description: "Explicit Acurast-proxy endpoint override; empty uses Liskov upload intents. Not a secret."
         required: false
         type: string
         default: ""
@@ -223,6 +234,9 @@ jobs:
         uses: proof-computer/liskov-github-actions/actions/ipfs-pin@v2
         with:
           app-name: ${{ inputs.app-id }}
+          organization-id: ${{ inputs.organization-id }}
+          liskov-url: ${{ inputs.liskov-url }}
+          authored-manifest-path: ${{ inputs.authored-manifest-path }}
           working-directory: ${{ inputs.working-directory }}
           entrypoint: ${{ inputs.entrypoint }}
           encryption-mode: ${{ inputs.encryption-mode }}

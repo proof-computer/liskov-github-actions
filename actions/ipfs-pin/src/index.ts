@@ -1,15 +1,13 @@
-// Build the Acurast deploy zip from dist/ and pin it (no-spend, "direct" path) to
-// the Acurast IPFS proxy, then write a script manifest. Ported from
-// liskov-diagnostic/scripts/upload-ipfs.ts (the mnemonic/CLI + devtools paths are
-// intentionally excluded — keep spend-capable upload out of the reusable surface).
+// Upload exact artifact bytes with a Liskov-issued token by default, or to an
+// explicitly selected proxy, then write a script manifest. Requires
+// permissions: id-token: write for the Liskov path.
 
 import * as core from "@actions/core";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { runIpfsPin } from "./runtime.js";
-
-const DEFAULT_IPFS_ENDPOINT = "https://ipfs-proxy.acurast.prod.gke.papers.tech";
+import { DEFAULT_LISKOV_URL, DEFAULT_UPLOAD_AUDIENCE } from "./liskov-upload.js";
 
 async function run(): Promise<void> {
   const workingDir = core.getInput("working-directory") || ".";
@@ -17,7 +15,7 @@ async function run(): Promise<void> {
   const entrypoint = core.getInput("entrypoint") || "app.cjs";
   const extraFiles = splitList(core.getInput("extra-files"));
   const restartPolicy = core.getInput("restart-policy") || "onFailure";
-  const endpoint = (core.getInput("ipfs-endpoint") || DEFAULT_IPFS_ENDPOINT).replace(/\/+$/u, "");
+  const endpoint = core.getInput("ipfs-endpoint").trim().replace(/\/+$/u, "");
   const apiKey = (process.env.LISKOV_IPFS_API_KEY || "").trim();
   const encryptionMode = core.getInput("encryption-mode") || "none";
   const encryptionKey = process.env.LISKOV_CODE_ENCRYPTION_KEY;
@@ -30,6 +28,10 @@ async function run(): Promise<void> {
     restartPolicy,
     endpoint,
     apiKey,
+    organizationId: optionalInput("organization-id"),
+    liskovUrl: core.getInput("liskov-url") || DEFAULT_LISKOV_URL,
+    audience: core.getInput("audience") || DEFAULT_UPLOAD_AUDIENCE,
+    authoredManifestPath: optionalInput("authored-manifest-path"),
     artifactPath: optionalInput("artifact-path"),
     metadataPath: optionalInput("metadata-path"),
     scriptIpfs: optionalInput("script-ipfs"),
@@ -38,6 +40,9 @@ async function run(): Promise<void> {
     encryptionMode, encryptionKey, encryptionSecretId: optionalInput("encryption-secret-id")
   }, {
     fetchImpl: fetch, now: () => new Date(), environment: process.env,
+    repositoryRoot: path.resolve(process.env.GITHUB_WORKSPACE || "."),
+    getIdToken: (audience) => core.getIDToken(audience),
+    maskSecret: (token) => core.setSecret(token),
     encryptedCodeLoader: encryptionMode === "none" ? undefined
       : await readFile(path.join(__dirname, "encrypted-loader.cjs"))
   });
@@ -46,6 +51,8 @@ async function run(): Promise<void> {
   core.setOutput("digest", result.digest);
   core.setOutput("manifest-path", result.manifestPath);
   core.setOutput("upload-performed", String(result.uploadPerformed));
+  core.setOutput("upload-id", result.uploadId);
+  core.setOutput("upload-path", result.uploadPath);
   core.info(
     `${result.uploadPerformed ? "Pinned" : "Reused"} ${appName}: `
       + `${result.scriptIpfs} (${result.digest})`
