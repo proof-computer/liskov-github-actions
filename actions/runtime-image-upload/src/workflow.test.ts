@@ -126,16 +126,11 @@ describe("runtime-image reusable workflow", () => {
     assert.deepEqual(Object.keys(object(action.outputs, "action outputs")), OUTPUTS);
     assert.deepEqual(Object.keys(object(uploadJob.outputs, "jobs.upload.outputs")), OUTPUTS);
     const actionInputs = object(action.inputs, "action inputs");
-    for (const input of ["manifest-path", "authored-digest", "release-intent-digest"]) {
-      const contract = object(actionInputs[input], `action input ${input}`);
-      assert.equal(contract.required, false);
-      assert.equal(contract.default, "");
-    }
+    // The V5 source document is the only binding: V4 mode was removed when
+    // V4 import closed.
+    assert.equal(object(actionInputs["manifest-path"], "action input manifest-path").required, true);
     for (const input of ["authored-digest", "release-intent-digest"]) {
-      assert.match(
-        String(object(actionInputs[input], input).description),
-        /^V4 mode; removed when V4 import closes/u
-      );
+      assert.equal(input in actionInputs, false, `action input ${input} is removed`);
     }
   });
 

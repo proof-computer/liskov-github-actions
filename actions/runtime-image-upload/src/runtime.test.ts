@@ -8,16 +8,12 @@ import { describe, it } from "node:test";
 import { requireValidPolicyManifest } from "../../shared/src/policy-contract.js";
 import {
   RUNTIME_IMAGE_SOURCE_UPLOAD_SESSION_DOMAIN,
-  RUNTIME_IMAGE_UPLOAD_SESSION_DOMAIN,
   inspectRuntimeImage,
   uploadRuntimeImage,
   type RuntimeImageS3Upload,
   type RuntimeImageUploadDependencies,
   type RuntimeImageUploadInputs
 } from "./runtime.js";
-
-const AUTHORED = "a".repeat(64);
-const RELEASE_INTENT = "b".repeat(64);
 
 const SOURCE_MANIFEST_PATH = ".liskov/app.v5.json";
 const SOURCE_DOCUMENT = {
@@ -45,153 +41,7 @@ const SOURCE_DOCUMENT = {
 // way the real one echoes its own computation over the posted document.
 const SOURCE_AUTHORED = requireValidPolicyManifest(SOURCE_DOCUMENT).authoredDigest!;
 const SOURCE_RELEASE_INTENT = "f".repeat(64);
-const NO_SOURCE_OUTPUTS = {
-  "artifact-digest": "",
-  "source-repository": "",
-  "source-ref": "",
-  "source-commit": "",
-  "source-workflow-identity": "",
-  "binding-revision": "",
-  "revocation-epoch": ""
-};
-
 describe("runtime-image upload action", () => {
-  it("hashes, binds, uploads, remints OIDC, finalizes, and projects safe outputs", async () => {
-    const image = Buffer.from("manifest-bound-runtime-image");
-    const imagePath = await temporaryImage(image);
-    const imageHex = createHash("sha256").update(image).digest("hex");
-    const oidcAudiences: string[] = [];
-    const requests: Array<{ url: string; token: string; body: unknown }> = [];
-    const uploads: RuntimeImageS3Upload[] = [];
-    const masked: string[] = [];
-    const dependencies = fakeDependencies({
-      imagePath,
-      oidcAudiences,
-      requests,
-      uploads,
-      masked,
-      postJson: async (url, token, body) => {
-        requests.push({ url, token, body });
-        return requests.length === 1
-          ? sessionResponse()
-          : finalizeResponse(`sha256:${imageHex}`, image.byteLength);
-      }
-    });
-
-    const outputs = await uploadRuntimeImage({
-      ...inputs(imagePath),
-      expectedSha256: `SHA256:${imageHex.toUpperCase()}`,
-      sourceImageUrl: "https://images.example/rootfs.tar.zst"
-    }, dependencies);
-
-    assert.deepEqual(oidcAudiences, [
-      "liskov-runtime-image-upload",
-      "liskov-runtime-image-upload"
-    ]);
-    assert.equal(requests.length, 2);
-    assert.equal(
-      requests[0]?.url,
-      "https://liskov.test/base/api/applications/app/runtime-images/upload-session"
-    );
-    assert.equal(requests[0]?.token, "oidc-upload-token");
-    assert.deepEqual(requests[0]?.body, {
-      domain: RUNTIME_IMAGE_UPLOAD_SESSION_DOMAIN,
-      authoredDigest: AUTHORED,
-      releaseIntentDigest: RELEASE_INTENT
-    });
-    assert.equal(uploads.length, 1);
-    assert.deepEqual(uploads[0], {
-      endpointUrl: "https://s3.example",
-      region: "auto",
-      bucket: "runtime-images",
-      objectKey: "images/app/session.tar.zst",
-      accessKeyId: "tigris-access-key",
-      secretAccessKey: "tigris-secret-key",
-      imagePath,
-      byteSize: image.byteLength,
-      digest: `sha256:${imageHex}`
-    });
-    assert.equal(
-      requests[1]?.url,
-      "https://liskov.test/base/api/applications/app/runtime-images/upload-sessions/session-1/finalize"
-    );
-    assert.equal(requests[1]?.token, "oidc-finalize-token");
-    assert.deepEqual(requests[1]?.body, {
-      objectKey: "images/app/session.tar.zst",
-      digest: `sha256:${imageHex}`,
-      byteSize: image.byteLength,
-      bootstrapMode: "standard",
-      provenance: {
-        repository: "proof-computer/app",
-        ref: "refs/heads/main",
-        sha: "0123456789abcdef",
-        workflowRef: "proof-computer/app/.github/workflows/caller.yml@refs/heads/main",
-        workflow: "Runtime image",
-        runId: "123",
-        runAttempt: "2",
-        actor: "builder",
-        eventName: "workflow_dispatch",
-        sourceImageUrl: "https://images.example/rootfs.tar.zst"
-      }
-    });
-    assert.deepEqual(masked, [
-      "oidc-upload-token",
-      "tigris-access-key",
-      "tigris-secret-key",
-      "oidc-finalize-token"
-    ]);
-    assert.deepEqual(outputs, {
-      "image-digest": `sha256:${imageHex}`,
-      "image-byte-size": String(image.byteLength),
-      "upload-session-id": "session-1",
-      "image-url": "https://liskov.test/runtime-images/session-1/image",
-      "bootstrap-cid": "ipfs://bafybootstrap",
-      "bootstrap-digest": `sha256:${"c".repeat(64)}`,
-      "bootstrap-manifest-digest": `sha256:${"d".repeat(64)}`,
-      "artifact-version-id": `av-${"e".repeat(64)}`,
-      "artifact-mode": "runtime-image",
-      "auto-published": "false",
-      "cleanup-status": "succeeded",
-      "provenance-json": JSON.stringify({
-        repository: "proof-computer/app",
-        ref: "refs/heads/main",
-        sha: "0123456789abcdef",
-        workflowRef: "proof-computer/app/.github/workflows/caller.yml@refs/heads/main"
-      }),
-      // V4 mode carries the V5 evidence outputs as empty strings, so the
-      // output list is one shape in both modes.
-      ...NO_SOURCE_OUTPUTS
-    });
-    assert.doesNotMatch(
-      JSON.stringify(outputs),
-      /oidc-upload-token|oidc-finalize-token|tigris-access-key|tigris-secret-key/u
-    );
-  });
-
-  it("makes no S3 call before the session echoes both manifest bindings", async () => {
-    const imagePath = await temporaryImage(Buffer.from("runtime-image"));
-    let s3Calls = 0;
-    const dependencies = fakeDependencies({
-      imagePath,
-      postJson: async () => ({
-        ...sessionResponse(),
-        uploadSession: {
-          ...sessionResponse().uploadSession as Record<string, unknown>,
-          authoredDigest: "c".repeat(64)
-        }
-      }),
-      putObject: async () => {
-        s3Calls += 1;
-      }
-    });
-
-    await assert.rejects(
-      uploadRuntimeImage(inputs(imagePath), dependencies),
-      /uploadSession\.authoredDigest did not echo the requested binding/u
-    );
-    assert.equal(s3Calls, 0);
-  });
-
   it("hashes locally and fails an expected-digest mismatch before OIDC or S3", async () => {
     const imagePath = await temporaryImage(Buffer.from("runtime-image"));
     let oidcCalls = 0;
@@ -209,7 +59,7 @@ describe("runtime-image upload action", () => {
 
     await assert.rejects(
       uploadRuntimeImage({
-        ...inputs(imagePath),
+        ...sourceInputs(imagePath),
         expectedSha256: "f".repeat(64)
       }, dependencies),
       /runtime image SHA-256 mismatch/u
@@ -235,7 +85,7 @@ describe("runtime-image upload action", () => {
     });
 
     await uploadRuntimeImage({
-      ...inputs(imagePath),
+      ...sourceInputs(imagePath),
       bootstrapMode: "bridge-probe"
     }, dependencies);
 
@@ -267,7 +117,7 @@ describe("runtime-image upload action", () => {
 
     await assert.rejects(
       uploadRuntimeImage({
-        ...inputs(imagePath),
+        ...sourceInputs(imagePath),
         bootstrapMode: "bridge_probe"
       }, dependencies),
       /bootstrap-mode must be exactly standard or bridge-probe/u
@@ -295,8 +145,8 @@ describe("runtime-image upload action", () => {
       postJson: async (url, token, body) => {
         requests.push({ url, token, body });
         return requests.length === 1
-          ? sourceSessionResponse()
-          : sourceFinalizeResponse(`sha256:${imageHex}`, image.byteLength);
+          ? sessionResponse()
+          : finalizeResponse(`sha256:${imageHex}`, image.byteLength);
       }
     });
 
@@ -369,7 +219,7 @@ describe("runtime-image upload action", () => {
 
   it("makes no S3 call before a V5 session echoes the authored digest and manifest path", async () => {
     const imagePath = await temporaryImage(Buffer.from("runtime-image"));
-    const session = sourceSessionResponse().uploadSession as Record<string, unknown>;
+    const session = sessionResponse().uploadSession as Record<string, unknown>;
     for (const [uploadSession, expected] of [
       [
         { ...session, authoredDigest: "c".repeat(64) },
@@ -395,7 +245,7 @@ describe("runtime-image upload action", () => {
       const dependencies = fakeDependencies({
         imagePath,
         readFile: async () => JSON.stringify(SOURCE_DOCUMENT),
-        postJson: async () => ({ ...sourceSessionResponse(), uploadSession }),
+        postJson: async () => ({ ...sessionResponse(), uploadSession }),
         putObject: async () => {
           s3Calls += 1;
         }
@@ -410,7 +260,7 @@ describe("runtime-image upload action", () => {
     const image = Buffer.from("runtime-image");
     const imagePath = await temporaryImage(image);
     const imageHex = createHash("sha256").update(image).digest("hex");
-    const finalize = sourceFinalizeResponse(`sha256:${imageHex}`, image.byteLength);
+    const finalize = finalizeResponse(`sha256:${imageHex}`, image.byteLength);
     for (const [response, expected] of [
       [{ ...finalize, source: undefined }, /finalize\.source must be an object/u],
       [
@@ -432,7 +282,7 @@ describe("runtime-image upload action", () => {
         readFile: async () => JSON.stringify(SOURCE_DOCUMENT),
         postJson: async () => {
           posts += 1;
-          return posts === 1 ? sourceSessionResponse() : response;
+          return posts === 1 ? sessionResponse() : response;
         }
       });
       await assert.rejects(uploadRuntimeImage(sourceInputs(imagePath), dependencies), expected);
@@ -463,7 +313,7 @@ describe("runtime-image upload action", () => {
     assert.equal(s3Calls, 0);
   });
 
-  it("refuses mixed or missing binding modes before reading, inspection, OIDC, or S3", async () => {
+  it("requires a manifest-path before reading, inspection, OIDC, or S3", async () => {
     const imagePath = await temporaryImage(Buffer.from("runtime-image"));
     let calls = 0;
     const count = async (): Promise<never> => {
@@ -479,28 +329,9 @@ describe("runtime-image upload action", () => {
     });
     dependencies.inspectImage = count;
 
-    for (const mixed of [
-      { ...inputs(imagePath), manifestPath: SOURCE_MANIFEST_PATH },
-      { ...sourceInputs(imagePath), authoredDigest: AUTHORED },
-      { ...sourceInputs(imagePath), releaseIntentDigest: RELEASE_INTENT }
-    ]) {
-      await assert.rejects(
-        uploadRuntimeImage(mixed, dependencies),
-        /^Error: manifest-path and the V4 digest inputs are mutually exclusive$/u
-      );
-    }
     await assert.rejects(
-      uploadRuntimeImage({
-        ...sourceInputs(imagePath),
-        manifestPath: "",
-        authoredDigest: "",
-        releaseIntentDigest: ""
-      }, dependencies),
-      /exactly one of manifest-path .* or authored-digest with release-intent-digest .* is required/u
-    );
-    await assert.rejects(
-      uploadRuntimeImage({ ...inputs(imagePath), releaseIntentDigest: "" }, dependencies),
-      /release-intent-digest must be exactly 64 lowercase hexadecimal characters/u
+      uploadRuntimeImage({ ...sourceInputs(imagePath), manifestPath: "" }, dependencies),
+      /^Error: manifest-path is required$/u
     );
     assert.equal(calls, 0);
   });
@@ -517,7 +348,7 @@ describe("runtime-image upload action", () => {
     });
 
     await assert.rejects(
-      uploadRuntimeImage(inputs(imagePath), dependencies),
+      uploadRuntimeImage(sourceInputs(imagePath), dependencies),
       (error: unknown) => {
         const message = error instanceof Error ? error.message : String(error);
         assert.doesNotMatch(
@@ -559,10 +390,7 @@ function fakeDependencies(options: FakeOptions): RuntimeImageUploadDependencies 
     putObject: options.putObject ?? (async (upload) => {
       options.uploads?.push(upload);
     }),
-    // V4 mode never reads a document: the default refuses any read.
-    readFile: options.readFile ?? (async (file) => {
-      throw new Error(`unexpected read of ${file}`);
-    }),
+    readFile: options.readFile ?? (async () => JSON.stringify(SOURCE_DOCUMENT, null, 2)),
     mask: (value) => options.masked?.push(value),
     environment: {
       GITHUB_REPOSITORY: "proof-computer/app",
@@ -579,17 +407,6 @@ function fakeDependencies(options: FakeOptions): RuntimeImageUploadDependencies 
   };
 }
 
-function inputs(imagePath: string): RuntimeImageUploadInputs {
-  return {
-    applicationId: "app",
-    imagePath,
-    authoredDigest: AUTHORED,
-    releaseIntentDigest: RELEASE_INTENT,
-    liskovUrl: "https://liskov.test/base/",
-    audience: "liskov-runtime-image-upload"
-  };
-}
-
 function sourceInputs(imagePath: string): RuntimeImageUploadInputs {
   return {
     applicationId: "app",
@@ -600,11 +417,19 @@ function sourceInputs(imagePath: string): RuntimeImageUploadInputs {
   };
 }
 
-// The k2hx (liskov-rs) upload-session response for a V5 source document: the
-// existing session keys plus `uploadSession.source`.
-function sourceSessionResponse(): Record<string, unknown> {
+// The k2hx (liskov-rs) upload-session response for a V5 source document.
+function sessionResponse(): Record<string, unknown> {
   return {
-    ...sessionResponse(),
+    upload: {
+      endpointUrl: "https://s3.example",
+      region: "auto",
+      bucket: "runtime-images",
+      objectKey: "images/app/session.tar.zst"
+    },
+    credentials: {
+      accessKeyId: "tigris-access-key",
+      secretAccessKey: "tigris-secret-key"
+    },
     uploadSession: {
       sessionId: "session-1",
       status: "ready",
@@ -628,9 +453,9 @@ function sourceSessionResponse(): Record<string, unknown> {
 }
 
 // The k2hx finalize response for a V5 session, in the server's key order:
-// every V4 key with `draft: null`, `policy: null`, `autoPublished: false`, the
-// six-key artifact, and the appended `source` evidence.
-function sourceFinalizeResponse(digest: string, byteSize: number): Record<string, unknown> {
+// `draft: null`, `policy: null`, `autoPublished: false`, the six-key
+// artifact, and the appended `source` evidence.
+function finalizeResponse(digest: string, byteSize: number): Record<string, unknown> {
   const bootstrap = {
     scriptCid: "bafybootstrap",
     bundleDigest: `sha256:${"c".repeat(64)}`,
@@ -644,7 +469,7 @@ function sourceFinalizeResponse(digest: string, byteSize: number): Record<string
     ok: true,
     applicationId: "app",
     uploadSession: {
-      ...sourceSessionResponse().uploadSession as Record<string, unknown>,
+      ...sessionResponse().uploadSession as Record<string, unknown>,
       status: "finalized",
       provenance: {
         repository: "proof-computer/app",
@@ -680,57 +505,6 @@ function sourceFinalizeResponse(digest: string, byteSize: number): Record<string
       bindingRevision: 3,
       revocationEpoch: 0
     }
-  };
-}
-
-function sessionResponse(): Record<string, unknown> {
-  return {
-    uploadSession: {
-      sessionId: "session-1",
-      status: "ready",
-      applicationId: "app",
-      authoredDigest: AUTHORED,
-      releaseIntentDigest: RELEASE_INTENT
-    },
-    upload: {
-      endpointUrl: "https://s3.example",
-      region: "auto",
-      bucket: "runtime-images",
-      objectKey: "images/app/session.tar.zst"
-    },
-    credentials: {
-      accessKeyId: "tigris-access-key",
-      secretAccessKey: "tigris-secret-key"
-    }
-  };
-}
-
-function finalizeResponse(digest: string, byteSize: number): Record<string, unknown> {
-  return {
-    uploadSession: {
-      sessionId: "session-1",
-      applicationId: "app",
-      authoredDigest: AUTHORED,
-      releaseIntentDigest: RELEASE_INTENT,
-      digest,
-      byteSize,
-      imageUrl: "https://liskov.test/runtime-images/session-1/image",
-      provenance: {
-        repository: "proof-computer/app",
-        ref: "refs/heads/main",
-        sha: "0123456789abcdef",
-        workflowRef: "proof-computer/app/.github/workflows/caller.yml@refs/heads/main"
-      }
-    },
-    cleanup: { status: "succeeded" },
-    bootstrap: {
-      scriptCid: "ipfs://bafybootstrap",
-      bundleDigest: `sha256:${"c".repeat(64)}`,
-      manifestDigest: `sha256:${"d".repeat(64)}`
-    },
-    artifactVersionId: `av-${"e".repeat(64)}`,
-    artifact: { mode: "runtime-image" },
-    autoPublished: false
   };
 }
 
