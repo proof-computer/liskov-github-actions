@@ -108,26 +108,13 @@ Mints an OIDC token and tells liskov-rs to reconcile the catalog to this commit.
 `/api/marketplace/ingest` endpoint is not built yet** (catalog schema spec, Part 2) —
 this is ready for it.
 
-### `policy-sync.yml` — authored manifest → imported draft
+### V4 manifest import is closed
 
-```yaml
-# .github/workflows/liskov-policy.yml in an app repo
-on:
-  push: { branches: [main], paths: ['.liskov/**'] }
-permissions: { id-token: write, contents: read }
-jobs:
-  manifest:
-    uses: proof-computer/liskov-github-actions/.github/workflows/policy-sync.yml@v2
-    with:
-      application-id: slipway-diagnostic
-      manifest-path: .liskov/slipway-diagnostic.policy.json
-```
-
-Checks out the repo, mints an OIDC token, and POSTs the authored manifest to
-`POST /api/applications/<id>/policy-imports/github`. The server verifies the token,
-requires the Application to already be bound to THIS repository, pins the recorded
-`source.commit` from the **verified** `sha` claim (auto-imports are commit-pinned by
-construction), and imports a draft. Publication and artifact selection are separate.
+`policy-sync.yml` and `actions/policy-import` were removed in `v2.3.0`, when
+Liskov closed V4 manifest import. Create the Application with
+`proof liskov application create`, bind its repository with
+`proof liskov application source-binding set`, and publish a V5 manifest with
+`proof liskov application policy publish`.
 
 ### `runtime-image.yml` — V5 source document → scoped image upload → bootstrap
 
@@ -199,10 +186,9 @@ or publish a `release.mode: pinned` document that names `artifact-digest`.
 The Application must already carry a source binding for this repository, ref,
 workflow and manifest path (`proof liskov application source-binding set`). This
 V5 path needs a Liskov server that accepts the
-`proof.liskov.runtime-image-source-upload-session.v1` domain. **`@v1` keeps the V4
-import path** (`policy-import`, then an upload bound to the imported digest pair)
-until V4 import closes; a caller that still builds from a V4 manifest stays on
-`@v1` and moves to `@v2` together with a V5 document.
+`proof.liskov.runtime-image-source-upload-session.v1` domain. **`@v1` carries the
+retired V4 import path** (`policy-import`, then an upload bound to the imported
+digest pair), which Liskov refuses; a caller moves to `@v2` with a V5 document.
 
 ### `cargo-runtime-image.yml` — locked Rust build → deterministic image → upload
 
@@ -222,7 +208,7 @@ imports nothing, and returns the same publication evidence and takes the same
 publish command as [`runtime-image.yml`](#runtime-imageyml--v5-source-document--scoped-image-upload--bootstrap):
 `artifact-digest`, `source-repository`, `source-ref`, `source-commit`,
 `source-workflow-identity`, `binding-revision` and `revocation-epoch`. `@v1`
-keeps the V4 import path until V4 import closes. Generated-image attestation defaults on. Set
+carries the retired V4 import path. Generated-image attestation defaults on. Set
 `attest-runtime-image: false` when GitHub artifact attestations are unavailable,
 including private repositories whose organization plan does not provide them.
 This skips only publication of GitHub build provenance for the derived image:
@@ -294,8 +280,7 @@ Compose your own job from these (`uses: proof-computer/liskov-github-actions/act
 | `ipfs-pin` | JS | generate/read exact bytes → Liskov OIDC upload + PROOF gateway verification (explicit `ipfs-endpoint` selects proxy), or reuse CID → `cid`/`digest`/`manifest-path`/`upload-id`/`upload-path` |
 | `artifact-pin-attest` | JS | OIDC → one or more manifest-bound `POST /api/applications/<id>/artifact-pins/github` calls |
 | `marketplace-ingest` | JS | OIDC → `POST /api/marketplace/ingest` |
-| `policy-import` | JS | OIDC → `POST /api/applications/<id>/policy-imports/github` (import the repo's authored manifest as a draft) |
-| `runtime-image-upload` | JS | Hash → scoped Tigris upload bound to a V5 source document (`manifest-path`) → fresh-OIDC finalize → publication evidence outputs. The `authored-digest` + `release-intent-digest` inputs are the V4 mode, mutually exclusive with `manifest-path` and removed when V4 import closes |
+| `runtime-image-upload` | JS | Hash → scoped Tigris upload bound to a V5 source document (`manifest-path`) → fresh-OIDC finalize → publication evidence outputs |
 | `cargo-runtime-image-build` | composite + Python | Safely overlay one static AArch64 binary and emit a normalized helperless-rootfs-derived `tar.xz` |
 | `source-assurance` | composite + Python | Verify a committed pnpm or Cargo CycloneDX SBOM → relative `sbom-path` and git-tree `source-digest` |
 
@@ -323,6 +308,8 @@ Compose your own job from these (`uses: proof-computer/liskov-github-actions/act
   and its endpoint only from `ipfs-endpoint`; `artifact-pin-attest` reads
   `LISKOV_ARTIFACT_PIN_URL` behind its `pin-url` input. `v1` is frozen at
   `v1.3.2`; a caller moves to `@v2` and its new names in one change.
+- `v2.3.0` removes V4 manifest import: `policy-sync.yml`, `actions/policy-import`
+  and the V4 mode of `runtime-image-upload`. No `@v2` caller used them.
 - Reusable workflows reference their own JS actions by the literal `@v2` major tag,
   so a caller pinned to `@v2` executes the matching released action surface.
 
@@ -331,8 +318,7 @@ Compose your own job from these (`uses: proof-computer/liskov-github-actions/act
 Only **no-spend** (IPFS pin), **OIDC attest/ingest**, and scoped runtime-image upload
 operations are exposed; the spend-capable `ACURAST_MNEMONIC` CLI-upload path is
 intentionally **not** ported. Runtime-image sessions require the exact V5 source
-document under the Application's current source binding (on `@v1`, the exact
-imported V4 manifest digest pair), and upload credentials are masked, retained only in memory,
+document under the Application's current source binding, and upload credentials are masked, retained only in memory,
 scoped to one object, and never emitted as outputs. The attest/ingest/upload endpoints
 are gated server-side on repository, ref, workflow, and manifest authority.
 

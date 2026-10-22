@@ -17,9 +17,7 @@ async function run(): Promise<void> {
   const inputs: RuntimeImageUploadInputs = {
     applicationId: core.getInput("application-id", { required: true }),
     imagePath: core.getInput("image-path", { required: true }),
-    manifestPath: core.getInput("manifest-path"),
-    authoredDigest: core.getInput("authored-digest"),
-    releaseIntentDigest: core.getInput("release-intent-digest"),
+    manifestPath: core.getInput("manifest-path", { required: true }),
     bootstrapMode: core.getInput("bootstrap-mode") || "standard",
     expectedSha256: core.getInput("expected-sha256"),
     sourceImageUrl: core.getInput("source-image-url"),
