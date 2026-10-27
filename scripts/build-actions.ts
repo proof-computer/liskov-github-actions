@@ -10,7 +10,6 @@ const JS_ACTIONS = [
   "ipfs-pin",
   "artifact-pin-attest",
   "marketplace-ingest",
-  "policy-import",
   "runtime-image-upload"
 ];
 

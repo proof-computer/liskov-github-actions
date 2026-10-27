@@ -55171,17 +55171,7 @@ function objectField(record2, field) {
 }
 
 // actions/runtime-image-upload/src/runtime.ts
-var RUNTIME_IMAGE_UPLOAD_SESSION_DOMAIN = "proof.liskov.runtime-image-upload-session.v1";
 var RUNTIME_IMAGE_SOURCE_UPLOAD_SESSION_DOMAIN = "proof.liskov.runtime-image-source-upload-session.v1";
-var NO_SOURCE_OUTPUTS = {
-  "artifact-digest": "",
-  "source-repository": "",
-  "source-ref": "",
-  "source-commit": "",
-  "source-workflow-identity": "",
-  "binding-revision": "",
-  "revocation-epoch": ""
-};
 async function inspectRuntimeImage(imagePath) {
   const imageStat = await (0, import_promises3.stat)(imagePath);
   if (!imageStat.isFile() || imageStat.size <= 0 || !Number.isSafeInteger(imageStat.size)) {
@@ -55207,12 +55197,11 @@ async function uploadRuntimeImage(rawInputs, dependencies) {
   };
   try {
     const inputs = validateInputs(rawInputs);
-    const binding = inputs.binding;
-    const source = binding.mode === "v5" ? await loadRuntimeImageSourceDocument(
-      binding.manifestPath,
+    const source = await loadRuntimeImageSourceDocument(
+      inputs.manifestPath,
       inputs.applicationId,
       dependencies.readFile
-    ) : void 0;
+    );
     const image = await dependencies.inspectImage(inputs.imagePath);
     const expectedDigest = normalizeExpectedDigest(inputs.expectedSha256);
     if (expectedDigest && expectedDigest !== image.digest) {
@@ -55223,11 +55212,7 @@ async function uploadRuntimeImage(rawInputs, dependencies) {
       inputs.liskovUrl,
       `/api/applications/${encodeURIComponent(inputs.applicationId)}/runtime-images/upload-session`
     );
-    const sessionBody = binding.mode === "v4" ? {
-      domain: RUNTIME_IMAGE_UPLOAD_SESSION_DOMAIN,
-      authoredDigest: binding.authoredDigest,
-      releaseIntentDigest: binding.releaseIntentDigest
-    } : {
+    const sessionBody = {
       domain: RUNTIME_IMAGE_SOURCE_UPLOAD_SESSION_DOMAIN,
       manifestPath: source.manifestPath,
       document: source.document
@@ -55243,21 +55228,12 @@ async function uploadRuntimeImage(rawInputs, dependencies) {
     const secretAccessKey = mask(
       requiredString(credentials.secretAccessKey, "credentials.secretAccessKey")
     );
-    if (binding.mode === "v4") {
-      assertEqual(uploadSession.authoredDigest, binding.authoredDigest, "uploadSession.authoredDigest");
-      assertEqual(
-        uploadSession.releaseIntentDigest,
-        binding.releaseIntentDigest,
-        "uploadSession.releaseIntentDigest"
-      );
-    } else {
-      assertEqual(uploadSession.authoredDigest, source.authoredDigest, "uploadSession.authoredDigest");
-      assertEqual(
-        record(uploadSession.source, "uploadSession.source").manifestPath,
-        source.manifestPath,
-        "uploadSession.source.manifestPath"
-      );
-    }
+    assertEqual(uploadSession.authoredDigest, source.authoredDigest, "uploadSession.authoredDigest");
+    assertEqual(
+      record(uploadSession.source, "uploadSession.source").manifestPath,
+      source.manifestPath,
+      "uploadSession.source.manifestPath"
+    );
     assertEqual(uploadSession.applicationId, inputs.applicationId, "uploadSession.applicationId");
     assertEqual(uploadSession.status, "ready", "uploadSession.status");
     const uploadSessionId = requiredString(uploadSession.sessionId, "uploadSession.sessionId");
@@ -55293,19 +55269,10 @@ async function uploadRuntimeImage(rawInputs, dependencies) {
     const serverProvenance = record(finalizedSession.provenance, "finalize.uploadSession.provenance");
     const autoPublished = requiredBoolean(finalized.autoPublished, "finalize.autoPublished");
     assertEqual(finalizedSession.sessionId, uploadSessionId, "finalize.uploadSession.sessionId");
-    if (binding.mode === "v4") {
-      assertEqual(finalizedSession.authoredDigest, binding.authoredDigest, "finalize.uploadSession.authoredDigest");
-      assertEqual(
-        finalizedSession.releaseIntentDigest,
-        binding.releaseIntentDigest,
-        "finalize.uploadSession.releaseIntentDigest"
-      );
-    } else {
-      assertEqual(finalizedSession.authoredDigest, source.authoredDigest, "finalize.uploadSession.authoredDigest");
-    }
+    assertEqual(finalizedSession.authoredDigest, source.authoredDigest, "finalize.uploadSession.authoredDigest");
     assertEqual(finalizedSession.digest, image.digest, "finalize.uploadSession.digest");
     assertEqual(finalizedSession.byteSize, image.byteSize, "finalize.uploadSession.byteSize");
-    const sourceOutputs = source ? sourceEvidenceOutputs(finalized, artifact, source.manifestPath) : NO_SOURCE_OUTPUTS;
+    const sourceOutputs = sourceEvidenceOutputs(finalized, artifact, source.manifestPath);
     return {
       "image-digest": image.digest,
       "image-byte-size": String(image.byteSize),
@@ -55356,40 +55323,18 @@ function sourceEvidenceOutputs(finalized, artifact, manifestPath) {
 function validateInputs(input) {
   const applicationId = nonEmpty(input.applicationId, "application-id");
   const imagePath = nonEmpty(input.imagePath, "image-path");
-  const binding = validateBinding(input);
+  const manifestPath = nonEmpty(input.manifestPath ?? "", "manifest-path");
   const audience = nonEmpty(input.audience, "audience");
   const bootstrapMode = validateBootstrapMode(input.bootstrapMode);
   return {
     applicationId,
     imagePath,
-    binding,
+    manifestPath,
     bootstrapMode,
     expectedSha256: input.expectedSha256,
     sourceImageUrl: input.sourceImageUrl,
     audience,
     liskovUrl: normalizedBaseUrl(input.liskovUrl)
-  };
-}
-function validateBinding(input) {
-  const manifestPath = input.manifestPath?.trim() ?? "";
-  const authoredDigest = input.authoredDigest ?? "";
-  const releaseIntentDigest = input.releaseIntentDigest ?? "";
-  const anyDigest = authoredDigest.trim() !== "" || releaseIntentDigest.trim() !== "";
-  if (manifestPath !== "") {
-    if (anyDigest) {
-      throw new Error("manifest-path and the V4 digest inputs are mutually exclusive");
-    }
-    return { mode: "v5", manifestPath };
-  }
-  if (!anyDigest) {
-    throw new Error(
-      "exactly one of manifest-path (a V5 source document) or authored-digest with release-intent-digest (V4 mode) is required"
-    );
-  }
-  return {
-    mode: "v4",
-    authoredDigest: contractDigest(authoredDigest, "authored-digest"),
-    releaseIntentDigest: contractDigest(releaseIntentDigest, "release-intent-digest")
   };
 }
 function validateBootstrapMode(value) {
@@ -55398,13 +55343,6 @@ function validateBootstrapMode(value) {
     throw new Error("bootstrap-mode must be exactly standard or bridge-probe");
   }
   return mode;
-}
-function contractDigest(value, field) {
-  const digest3 = value.trim();
-  if (!/^[0-9a-f]{64}$/u.test(digest3)) {
-    throw new Error(`${field} must be exactly 64 lowercase hexadecimal characters without a prefix`);
-  }
-  return digest3;
 }
 function normalizeExpectedDigest(value) {
   const trimmed = value?.trim();
@@ -55499,9 +55437,7 @@ async function run() {
   const inputs = {
     applicationId: core.getInput("application-id", { required: true }),
     imagePath: core.getInput("image-path", { required: true }),
-    manifestPath: core.getInput("manifest-path"),
-    authoredDigest: core.getInput("authored-digest"),
-    releaseIntentDigest: core.getInput("release-intent-digest"),
+    manifestPath: core.getInput("manifest-path", { required: true }),
     bootstrapMode: core.getInput("bootstrap-mode") || "standard",
     expectedSha256: core.getInput("expected-sha256"),
     sourceImageUrl: core.getInput("source-image-url"),

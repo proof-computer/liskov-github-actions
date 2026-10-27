@@ -1,6 +1,25 @@
 # Changelog
 
-## Unreleased — next v2 minor
+## Unreleased — v2.3.0
+
+- **V4 manifest import is removed** (BKLG-20261013-zczc, closing V4 import
+  under BKLG-20260907-3xu0). Liskov refuses new V4 imports, and no `@v2`
+  caller used these surfaces:
+  - `.github/workflows/policy-sync.yml` is deleted.
+  - `actions/policy-import` is deleted, together with `actions/shared`'s
+    `source-publication` module, whose only consumer it was.
+  - `runtime-image-upload` loses its V4 mode. The `authored-digest` and
+    `release-intent-digest` inputs are gone, `manifest-path` (a V5 source
+    document) is required, and the session is always opened with
+    `proof.liskov.runtime-image-source-upload-session.v1`. The seven
+    source-evidence outputs are always set.
+- To author an application now, run `proof liskov application create`, then
+  bind its source with `application source-binding set`, then publish a V5
+  manifest with `application policy publish`. `@v1` (frozen at `v1.3.2`) still
+  carries the retired V4 import path, which Liskov refuses.
+- `bootstrap-mode` is unchanged and defaults to `standard`.
+
+## v2.2.0
 
 - **`runtime-image.yml` and `cargo-runtime-image.yml` upload a V5 source
   document and import nothing** (BKLG-20261008-v5rb). `manifest-path` is now a

@@ -1,5 +1,5 @@
 name: "Liskov runtime-image upload"
-description: "Upload a runtime image bound to a V5 source document (or, in V4 mode, an imported manifest digest pair) through a scoped Liskov Tigris session and finalize its bootstrap artifact."
+description: "Upload a runtime image bound to a V5 source document through a scoped Liskov Tigris session and finalize its bootstrap artifact."
 inputs:
   application-id:
     description: "Liskov Application id."
@@ -8,17 +8,8 @@ inputs:
     description: "Local path to the non-empty PRoot image."
     required: true
   manifest-path:
-    description: "Repo-relative V5 source document (release.mode: source, runtime.kind: native_image) in the checkout. Mutually exclusive with authored-digest and release-intent-digest; exactly one mode is required."
-    required: false
-    default: ""
-  authored-digest:
-    description: "V4 mode; removed when V4 import closes. Server-authoritative raw lowercase SHA-256 digest of the exact authored manifest."
-    required: false
-    default: ""
-  release-intent-digest:
-    description: "V4 mode; removed when V4 import closes. Server-authoritative raw lowercase SHA-256 digest of normalized release intent."
-    required: false
-    default: ""
+    description: "Repo-relative V5 source document (release.mode: source, runtime.kind: native_image) in the checkout."
+    required: true
   bootstrap-mode:
     description: "Bootstrap launcher mode. bridge-probe is restricted by Liskov to its exact internal canary workflow."
     required: false
@@ -65,19 +56,19 @@ outputs:
   provenance-json:
     description: "Server-authoritative safe GitHub provenance JSON."
   artifact-digest:
-    description: "Bootstrap bundle digest a V5 publication names (--artifact-digest). Empty in V4 mode."
+    description: "Bootstrap bundle digest a V5 publication names (--artifact-digest)."
   source-repository:
-    description: "Verified source repository the artifact was built from. Empty in V4 mode."
+    description: "Verified source repository the artifact was built from."
   source-ref:
-    description: "Verified source ref (--source-ref). Empty in V4 mode."
+    description: "Verified source ref (--source-ref)."
   source-commit:
-    description: "Verified source commit (--source-commit). Empty in V4 mode."
+    description: "Verified source commit (--source-commit)."
   source-workflow-identity:
-    description: "Verified workflow identity (--workflow-identity). Empty in V4 mode."
+    description: "Verified workflow identity (--workflow-identity)."
   binding-revision:
-    description: "Source-binding revision the session was fenced against (--binding-revision). Empty in V4 mode."
+    description: "Source-binding revision the session was fenced against (--binding-revision)."
   revocation-epoch:
-    description: "Source-binding revocation epoch the session was fenced against (--revocation-epoch). Empty in V4 mode."
+    description: "Source-binding revocation epoch the session was fenced against (--revocation-epoch)."
 runs:
   using: "node24"
   main: "dist/index.cjs"
