@@ -103,7 +103,7 @@ export async function runIpfsPin(
     scriptIpfs = validateScriptIpfs(suppliedCid);
     uploadPath = "reused";
   } else if (inputs.endpoint.trim()) {
-    scriptIpfs = await uploadArtifact(artifactBytes, inputs, dependencies.fetchImpl);
+    scriptIpfs = await uploadArtifact(artifactBytes, inputs, dependencies.fetchImpl, "proxy");
     uploadPath = "proxy";
   } else {
     let manifestDigest = `sha256:${artifactSha256}`;
@@ -129,7 +129,7 @@ export async function runIpfsPin(
     scriptIpfs = await uploadArtifact(artifactBytes, {
       endpoint: intent.upload.url.slice(0, -"/pinning/pinFileToIPFS".length),
       apiKey: intent.token
-    }, dependencies.fetchImpl);
+    }, dependencies.fetchImpl, "liskov");
     uploadId = intent.uploadId;
     uploadPath = "liskov";
     gatewayUrl ||= intent.gatewayUrlTemplate;
@@ -220,7 +220,8 @@ async function generatedZip(root: string, inputs: IpfsPinInputs): Promise<Buffer
 async function uploadArtifact(
   artifactBytes: Buffer,
   inputs: Pick<IpfsPinInputs, "endpoint" | "apiKey">,
-  fetchImpl: typeof fetch
+  fetchImpl: typeof fetch,
+  target: "proxy" | "liskov"
 ): Promise<string> {
   const endpoint = inputs.endpoint.replace(/\/+$/u, "");
   const form = new FormData();
@@ -229,8 +230,13 @@ async function uploadArtifact(
     new Blob([new Uint8Array(artifactBytes)], { type: "application/zip" }),
     "script.js"
   );
-  form.append("pinataOptions", JSON.stringify({ cidVersion: 0 }));
-  form.append("pinataMetadata", JSON.stringify({ name: "script.js" }));
+  // The Acurast proxy is Pinata-compatible and takes these hints. The Liskov
+  // upload service accepts exactly one `file` part and refuses any other field
+  // (LIA4010); its token already fixes CIDv0.
+  if (target === "proxy") {
+    form.append("pinataOptions", JSON.stringify({ cidVersion: 0 }));
+    form.append("pinataMetadata", JSON.stringify({ name: "script.js" }));
+  }
   let response: Response;
   try {
     response = await fetchImpl(`${endpoint}/pinning/pinFileToIPFS`, {
