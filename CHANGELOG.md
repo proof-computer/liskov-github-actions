@@ -1,6 +1,20 @@
 # Changelog
 
-## Unreleased — v2.3.0
+## v2.3.1
+
+- **Liskov uploads send only the `file` part.** The `ipfs-pin` default path
+  in `v2.3.0` also sent `pinataOptions` and `pinataMetadata`, which PROOF's
+  upload service refuses with `LIA4010` ("Upload request includes unexpected
+  non-file fields"). Every `@v2` build without `ipfs-endpoint` failed at the
+  pin step. The upload token already fixes CIDv0. The `ipfs-endpoint` proxy
+  path keeps the Pinata fields.
+
+## v2.3.0
+
+- **`ipfs-pin` uploads through Liskov-issued upload intents by default**
+  (BKLG-20261006-tae2, ADR-0180, ADR-0222). `acurast-app.yml` and `ipfs-pin`
+  require `organization-id` on that path. `ipfs-endpoint` selects the Acurast
+  proxy explicitly.
 
 - **V4 manifest import is removed** (BKLG-20261013-zczc, closing V4 import
   under BKLG-20260907-3xu0). Liskov refuses new V4 imports, and no `@v2`

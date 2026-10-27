@@ -168,6 +168,8 @@ test("Liskov default uploads exact bytes, masks token, and verifies its gateway"
           assert.ok(file instanceof Blob);
           assert.deepEqual(Buffer.from(await file.arrayBuffer()), preparedBytes);
           assert.deepEqual(init.body.getAll("file"), [file]);
+          // The Liskov upload service refuses any non-file field (LIA4010).
+          assert.deepEqual([...init.body.keys()], ["file"]);
           return Response.json({ IpfsHash: "QmDefaultCid" });
         }
         assert.equal(init, undefined);
