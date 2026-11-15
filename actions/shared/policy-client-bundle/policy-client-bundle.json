@@ -3,8 +3,8 @@
   "abiVersion": 1,
   "artifact": {
     "file": "policy-client-contract.wasm.gz",
-    "sha256": "sha256:074264bd5dac631188f0771b0da873567541c0cbe3d44dacc12e3270982477bd",
-    "uncompressedSha256": "sha256:c7986bd0274862684cbc3f8913f0c1664d132d9cfe76dd4286084bd8e010e909"
+    "sha256": "sha256:d5616569492408044fd6d95b63dce78181b01f7400443a063acaaa6b32df53ea",
+    "uncompressedSha256": "sha256:5ff280f8b1149f45ab1bc0c08a1eb4dcb9912e3aaaa9f92aaa4457dd8ee26a1a"
   },
   "adapter": {
     "file": "policy-client.cjs",
@@ -16,7 +16,7 @@
   },
   "conformance": {
     "file": "policy-client-conformance.json",
-    "sha256": "sha256:20d544c6d7bcb357dad69da7dc104e0085355470e9c36a5b686da74a8ad93366"
+    "sha256": "sha256:e371c869b13968b656bd64e56b6572637b6d792393b6fccae980aa5141c7e923"
   },
   "supportedPairs": [
     {
@@ -92,10 +92,10 @@
         "activationAuthorized": false
       },
       "source": {
-        "root": "crates/slipway-application-policy/fixtures/v5/corpus",
+        "root": "crates/liskov-application-policy/fixtures/v5/corpus",
         "pattern": "*.yaml",
         "expectedCount": 25,
-        "manifest": "crates/slipway-application-policy/fixtures/v5/corpus-manifest.json",
+        "manifest": "crates/liskov-application-policy/fixtures/v5/corpus-manifest.json",
         "sourceRepository": "https://github.com/proof-computer/liskov-examples",
         "sourceCommit": "880ea6d8b6fb3bb9d0ff7b70cb6cd2c0cc6a0451",
         "sourcePathTemplate": "applications/{stem}/liskov.draft.yaml"
@@ -127,30 +127,38 @@
         "canonicalIdentity": {
           "domain": "proof.liskov.policy-v6-release.v1",
           "components": {
-            "crates/slipway-application-policy/schema/application-manifest-v6.schema.json": "sha256:4f082502072307dcaed8e1ab0ab61d631fd71df09ec541fdfbd6635e0ce23b54",
-            "crates/slipway-application-policy/schema/application-policy-v6.schema.json": "sha256:cbcde7b50f9683442b939c254258cfcf6cc954eae811890f812f0dc4641fc29f",
-            "crates/slipway-application-policy/fixtures/v6/semantic-matrix.json": "sha256:a62924fd53929d3cbb13626bbfa0234e987a8b64317fa18e06cc3c07b9238df0",
-            "crates/slipway-application-policy/fixtures/v6/corpus-manifest.json": "sha256:3ae9a7c40401af0f6a4114e3375b26ecd38bddf52ae7c10f9e7fbe3a776d29c8",
-            "crates/slipway-application-policy/fixtures/v6/invalid-fixture-manifest.json": "sha256:4a9a4c50c6f24693c23030f9f832c534db279c4738601fc8c2531b763c12d9f3",
-            "crates/slipway-application-policy/fixtures/v6/materialization-digest-goldens.json": "sha256:c03bb0d82d14e3fa404245aefb48a4f94fb002346aaef83a69ac19584df98a8f",
+            "crates/slipway-application-policy/schema/application-manifest-v6.schema.json": "sha256:c699b62b138ad87a3b4bcb3357a7ba93694fc309676c669a66415ed0b27b980d",
+            "crates/slipway-application-policy/schema/application-policy-v6.schema.json": "sha256:59887d0ce5c506294a16532183d033d7ed418b937374d53c83e1d4913ee4aef5",
+            "crates/slipway-application-policy/fixtures/v6/semantic-matrix.json": "sha256:1fe729c4015c1ae17048a5512f50d3308c5c28fbf8234c8fcab736eca80197bb",
+            "crates/slipway-application-policy/fixtures/v6/corpus-manifest.json": "sha256:8552ef0ee5599e5f109b4f2e72e68237f22317ab7880231750d6c5b008646a2e",
+            "crates/slipway-application-policy/fixtures/v6/invalid-fixture-manifest.json": "sha256:629ec1576b9333debe5af13bcea1997eeac3e67e4fd7e738cb069d8b9f3444b0",
+            "crates/slipway-application-policy/fixtures/v6/materialization-digest-goldens.json": "sha256:c0d8b6fdaced73c19088e512a29b022e2cd245d41522a0f9517e854cc1702c12",
             "crates/slipway-application-policy/fixtures/v6/diagnostic-registry.json": "sha256:b9f637045a46558858ac768280da330a565ab75f7259c2bd8bef306b0f877748"
           }
         },
-        "rcDigest": "sha256:370174747654704cd1e716ea62618441ff6738c62472afa83dcd1b6db797ff4b"
+        "rcDigest": "sha256:843a50741739fa5069f9cd7b1dfd05a79d9b59439b85d129f982cd3c60f2a1ca"
       },
       "source": {
-        "root": "crates/slipway-application-policy/fixtures/v6/corpus",
+        "root": "crates/liskov-application-policy/fixtures/v6/corpus",
         "pattern": "*.yaml",
         "expectedCount": 26,
-        "manifest": "crates/slipway-application-policy/fixtures/v6/corpus-manifest.json",
+        "manifest": "crates/liskov-application-policy/fixtures/v6/corpus-manifest.json",
         "sourceRepository": "https://github.com/proof-computer/liskov-examples",
         "sourceCommit": "bd1f20f099b0f8015de18e1ba0373d0fd7e1fe5f",
         "sourcePathTemplate": "applications/{stem}/liskov.draft.yaml"
       },
       "expectedClientSurfaces": [
         {
+          "repository": "proof-cli-liskov",
+          "surface": "offline-validation"
+        },
+        {
+          "repository": "liskov-github-actions",
+          "surface": "workflow-policy-validation"
+        },
+        {
           "repository": "liskov-ui",
-          "surface": "opaque-policy-read-and-render"
+          "surface": "offline-authoring-and-policy-readback"
         }
       ]
     },
@@ -162,22 +170,22 @@
         "canonicalIdentity": {
           "domain": "proof.liskov.policy-v7-release.v1",
           "components": {
-            "crates/slipway-application-policy/schema/application-manifest-v7.schema.json": "sha256:03595f859d1ccfa6136ef1f7a5df3b7279325fabd06cfacacc8b16541343e8c4",
-            "crates/slipway-application-policy/schema/application-policy-v7.schema.json": "sha256:531cf48d7c08c63f13a1b037ac9908e39d7ee92b44155590c6c8cf0dfc8a54e9",
-            "crates/slipway-application-policy/fixtures/v7/semantic-matrix.json": "sha256:f43277f915347fc9b84f2bf4ffafa9b1f67fe4a5f6a3c4443d703457f7d696e8",
-            "crates/slipway-application-policy/fixtures/v7/corpus-manifest.json": "sha256:7f3d3662bf2f91af8123b8aa25d1fe69d24b3db06dddaf912d4db57fe120a5e5",
+            "crates/slipway-application-policy/schema/application-manifest-v7.schema.json": "sha256:fdae90b0183d7e56eceef1832839e5e1b33228778be79e2e88fa62e4763eb32e",
+            "crates/slipway-application-policy/schema/application-policy-v7.schema.json": "sha256:dbe7c69d311afa2c1b2ca1d6675129d07ec0d240511997ab9f17dca9615360a3",
+            "crates/slipway-application-policy/fixtures/v7/semantic-matrix.json": "sha256:0cf480d3c834b1b3deab7943cea1ccf2168895b77c17af23f6df40296c9977f0",
+            "crates/slipway-application-policy/fixtures/v7/corpus-manifest.json": "sha256:a335b22b13314681a1e9e8788f405e3dfd108ffca2a5deb3339796f51f1ae787",
             "crates/slipway-application-policy/fixtures/v7/invalid-fixture-manifest.json": "sha256:95839214ea009ac6a48cdd00a631297e97cb836a794da0b04311ce29cdc8be92",
             "crates/slipway-application-policy/fixtures/v7/materialization-digest-goldens.json": "sha256:00fd40a5fdbea0b86eb17da4a4a57c468fc532df03fe180cc9c96068a92adee7",
             "crates/slipway-application-policy/fixtures/v7/diagnostic-registry.json": "sha256:b9f637045a46558858ac768280da330a565ab75f7259c2bd8bef306b0f877748"
           }
         },
-        "rcDigest": "sha256:6593c011151f30c24566f0aef1c6dfc4ebce6f455525e32861f38df68da1a5b9"
+        "rcDigest": "sha256:5f00830b883844ad4fd22ad8c3981f23593a001d818a64238b938020430c3250"
       },
       "source": {
-        "root": "crates/slipway-application-policy/fixtures/v7/corpus",
+        "root": "crates/liskov-application-policy/fixtures/v7/corpus",
         "pattern": "*.yaml",
         "expectedCount": 3,
-        "manifest": "crates/slipway-application-policy/fixtures/v7/corpus-manifest.json",
+        "manifest": "crates/liskov-application-policy/fixtures/v7/corpus-manifest.json",
         "sourceRepository": "https://github.com/proof-computer/liskov-rs",
         "sourceCommit": "75f54e617b7670d879721176466b7bb20efab0d9",
         "sourcePathTemplate": "crates/slipway-application-policy/fixtures/v7/corpus/{stem}.yaml"
@@ -208,16 +216,16 @@
             "crates/slipway-executor-contracts/vectors/payload-download-v1.json": "sha256:3ed90d91529d24a5b8ee75db289b0fddc521bda8a8d52895f93f76c9cc817559",
             "crates/slipway-application-policy/fixtures/v8/invalid-cases.json": "sha256:17f9c563ca23e9770d3bc449ff862e81dba4f6772db0b6a3e698b45a262378d9",
             "crates/slipway-application-policy/fixtures/v8/v8-digests.json": "sha256:45e25c9858b4909b87968355fe28cf949cf95c2875eb26fe9f2086aa788cc3e2",
-            "crates/slipway-application-policy/fixtures/v8/retained-file-digests.json": "sha256:1fbe8eee635465ccf10923b275661f6b0914f13c7928f15e56e05241810a84b8"
+            "crates/slipway-application-policy/fixtures/v8/retained-file-digests.json": "sha256:8af1d5f211ef5ca2a512d548dbf33ea3b13790620b0c5160ab100228202a5fcd"
           }
         },
-        "rcDigest": "sha256:22c541f107883800d851cdf56a661cc1d4b865a702e8668eae109b563ed24af9"
+        "rcDigest": "sha256:b2d7f9f44d11ae01eac2163feb158ad18be522bad32c77b4349231b1002608fb"
       },
       "source": {
-        "root": "crates/slipway-application-policy/releases/v8/corpus",
+        "root": "crates/liskov-application-policy/releases/v8/corpus",
         "pattern": "*.yaml",
         "expectedCount": 3,
-        "manifest": "crates/slipway-application-policy/releases/v8/corpus-manifest.json",
+        "manifest": "crates/liskov-application-policy/releases/v8/corpus-manifest.json",
         "sourceRepository": "https://github.com/proof-computer/liskov-rs",
         "sourceCommit": "97c0165a41ffc57cd76ac3666769629e8ff388f6",
         "sourcePathTemplate": "crates/slipway-application-policy/fixtures/v8/{stem}.json"
@@ -238,6 +246,6 @@
       ]
     }
   ],
-  "sourceDigest": "sha256:eb606519f755169179b09b7cdf287799e6b0450d99b412ca0f852600d4b94847",
-  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
+  "sourceDigest": "sha256:3d5fdfa7eee58ecc7cb1849238ab2b3a9e62a8676543f329b5fc884d4a8c80c4",
+  "rustc": "rustc 1.100.0 (0ef1bc386 2026-11-09)"
 }
