@@ -22,14 +22,14 @@ const corpus = JSON.parse(readFileSync(path.join(directory, "policy-client-confo
   unknown: { request: Record<string, unknown> };
 };
 
-// BKLG-20261019-emfa: complete bundle from BKLG-20260926-6f4f's merged
-// liskov-rs commit 13f039d41b8febf36db37844a7a61cc405fcec79 (ADR-0071).
-test("vendored Access-evidence bundle retains the exact producer manifest and artifact hashes", () => {
+// BKLG-20261107-rs1z: complete bundle from BKLG-20261115-2cpd's merged
+// liskov-rs commit d0d7a4f896c78fbc28e4b5abd36d959fb49abb2a (ADR-0229).
+test("vendored V6 booking bundle retains the exact producer manifest and artifact hashes", () => {
   const digest = (bytes: Buffer) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
   const manifestBytes = readFileSync(path.join(directory, "policy-client-bundle.json"));
-  assert.equal(digest(manifestBytes), "sha256:f9f4734f99b2b0c660dc4f7a3bf07cd338e7639a8d1543ebf5a55645797c587e");
+  assert.equal(digest(manifestBytes), "sha256:ed6a1d8a615f510e2454b06baf2dca37556754437d84fdfaabe134a25bc43ef6");
   const manifest = JSON.parse(manifestBytes.toString("utf8"));
-  assert.equal(manifest.sourceDigest, "sha256:eb606519f755169179b09b7cdf287799e6b0450d99b412ca0f852600d4b94847");
+  assert.equal(manifest.sourceDigest, "sha256:3d5fdfa7eee58ecc7cb1849238ab2b3a9e62a8676543f329b5fc884d4a8c80c4");
   for (const key of ["artifact", "adapter", "types", "conformance"]) {
     const entry = manifest[key];
     assert.equal(digest(readFileSync(path.join(directory, entry.file))), entry.sha256, key);
@@ -161,7 +161,38 @@ test("V6 refuses deferred region/network dimensions at owner diagnostic pointers
   }
 });
 
-test("V5 remains the only registered source-publication pair, with V7 also unpublished", () => {
+test("V6 accepts managed continuous booking without source publication", () => {
+  const sample = corpus.invalid.find((sample) => sample.name === "v6/invalid/booking-horizon-1d");
+  assert.ok(sample, "owner continuous managed-custody booking fixture exists");
+  for (const booking of [
+    { mode: "ahead_of_time", horizon: "6h" },
+    { mode: "just_in_time" }
+  ]) {
+    const document = parse(String(sample.request.document));
+    document.deployment.booking = booking;
+    const result = evaluatePolicyManifest(document);
+    assert.equal(result.disposition, "supported");
+    assert.equal(result.valid, true, JSON.stringify(result.errors));
+    assert.deepEqual((result.document?.deployment as Record<string, unknown>).booking, booking);
+    assert.equal(supportsRegisteredSourcePublication(result), false);
+  }
+});
+
+for (const name of ["booking-horizon-1d", "booking-self-custody"]) {
+  test(`V6 refuses ${name} at the owner booking diagnostic`, () => {
+    const sample = corpus.invalid.find((sample) => sample.name === `v6/invalid/${name}`);
+    assert.ok(sample, `owner ${name} booking fixture exists`);
+    const document = parse(String(sample.request.document));
+    if (name === "booking-horizon-1d") document.deployment.booking.horizon = "24h";
+    const result = evaluatePolicyManifest(document);
+    assert.equal(result.valid, false);
+    assert.equal(result.errors[0]?.code, sample.expectedCode);
+    assert.equal(result.errors[0]?.pointer, sample.expectedPointer);
+    assert.equal(supportsRegisteredSourcePublication(result), false);
+  });
+}
+
+test("V5 remains the only registered source-publication pair, with V6 and V7 unpublished", () => {
   const manifest = JSON.parse(readFileSync(path.join(directory, "policy-client-bundle.json"), "utf8"));
   assert.deepEqual(manifest.publicationPairs, [
     { schema: "proof.liskov.application-manifest", schemaVersion: 5, releaseMode: "source" }
