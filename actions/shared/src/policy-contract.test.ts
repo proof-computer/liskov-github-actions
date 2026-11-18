@@ -22,14 +22,16 @@ const corpus = JSON.parse(readFileSync(path.join(directory, "policy-client-confo
   unknown: { request: Record<string, unknown> };
 };
 
-// BKLG-20261107-rs1z: complete bundle from BKLG-20261115-2cpd's merged
-// liskov-rs commit d0d7a4f896c78fbc28e4b5abd36d959fb49abb2a (ADR-0229).
-test("vendored V6 booking bundle retains the exact producer manifest and artifact hashes", () => {
+// BKLG-20261118-b0q6: complete bundle from BKLG-20261118-pztg's merged
+// liskov-rs commit 4473cf26b26f4ed6d2960b086506254fe4d7dea3 (ADR-0063).
+const vendoredProducerCommit = "4473cf26b26f4ed6d2960b086506254fe4d7dea3";
+test("vendored V6 bundle retains the exact producer manifest and artifact hashes", () => {
   const digest = (bytes: Buffer) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
   const manifestBytes = readFileSync(path.join(directory, "policy-client-bundle.json"));
-  assert.equal(digest(manifestBytes), "sha256:ed6a1d8a615f510e2454b06baf2dca37556754437d84fdfaabe134a25bc43ef6");
+  assert.equal(vendoredProducerCommit, "4473cf26b26f4ed6d2960b086506254fe4d7dea3");
+  assert.equal(digest(manifestBytes), "sha256:54bd5f14b62fa425915045cb414326bb9cc1b6ea0dbed60d0e6fac30ebd67dc0");
   const manifest = JSON.parse(manifestBytes.toString("utf8"));
-  assert.equal(manifest.sourceDigest, "sha256:3d5fdfa7eee58ecc7cb1849238ab2b3a9e62a8676543f329b5fc884d4a8c80c4");
+  assert.equal(manifest.sourceDigest, "sha256:199861f912ffab4e6e12a250248117c11074f42328dd571acccb5c0ac1608c29");
   for (const key of ["artifact", "adapter", "types", "conformance"]) {
     const entry = manifest[key];
     assert.equal(digest(readFileSync(path.join(directory, entry.file))), entry.sha256, key);
@@ -161,36 +163,28 @@ test("V6 refuses deferred region/network dimensions at owner diagnostic pointers
   }
 });
 
-test("V6 accepts managed continuous booking without source publication", () => {
-  const sample = corpus.invalid.find((sample) => sample.name === "v6/invalid/booking-horizon-1d");
-  assert.ok(sample, "owner continuous managed-custody booking fixture exists");
-  for (const booking of [
+test("V6 refuses an authored deployment reservation block as an unknown field", () => {
+  const sample = corpus.valid.find((entry) => entry.name === "v6/benchmark-js");
+  assert.ok(sample, "owner benchmark-js V6 corpus document exists");
+  for (const block of [
     { mode: "ahead_of_time", horizon: "6h" },
     { mode: "just_in_time" }
   ]) {
-    const document = parse(String(sample.request.document));
-    document.deployment.booking = booking;
-    const result = evaluatePolicyManifest(document);
-    assert.equal(result.disposition, "supported");
-    assert.equal(result.valid, true, JSON.stringify(result.errors));
-    assert.deepEqual((result.document?.deployment as Record<string, unknown>).booking, booking);
-    assert.equal(supportsRegisteredSourcePublication(result), false);
+    const authored = parse(String(sample.request.document)) as { deployment: Record<string, unknown> };
+    authored.deployment.booking = block;
+    assert.equal("booking" in authored.deployment, true);
+    const refused = evaluatePolicyManifest(authored);
+    assert.equal(refused.valid, false, JSON.stringify(refused.errors));
+    assert.equal(refused.errors[0]?.code, "unknown_field");
+    assert.equal(refused.errors[0]?.pointer, "/deployment/booking");
+    const without = structuredClone(authored);
+    delete without.deployment.booking;
+    assert.equal("booking" in without.deployment, false);
+    const accepted = evaluatePolicyManifest(without);
+    assert.equal(accepted.valid, true, JSON.stringify(accepted.errors));
+    assert.equal(supportsRegisteredSourcePublication(accepted), false);
   }
 });
-
-for (const name of ["booking-horizon-1d", "booking-self-custody"]) {
-  test(`V6 refuses ${name} at the owner booking diagnostic`, () => {
-    const sample = corpus.invalid.find((sample) => sample.name === `v6/invalid/${name}`);
-    assert.ok(sample, `owner ${name} booking fixture exists`);
-    const document = parse(String(sample.request.document));
-    if (name === "booking-horizon-1d") document.deployment.booking.horizon = "24h";
-    const result = evaluatePolicyManifest(document);
-    assert.equal(result.valid, false);
-    assert.equal(result.errors[0]?.code, sample.expectedCode);
-    assert.equal(result.errors[0]?.pointer, sample.expectedPointer);
-    assert.equal(supportsRegisteredSourcePublication(result), false);
-  });
-}
 
 test("V5 remains the only registered source-publication pair, with V6 and V7 unpublished", () => {
   const manifest = JSON.parse(readFileSync(path.join(directory, "policy-client-bundle.json"), "utf8"));
