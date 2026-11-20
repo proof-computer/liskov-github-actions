@@ -395,7 +395,7 @@ loader. A private repository alone does not protect ordinary `none` artifacts.
 ## License
 
 This repository is licensed under the Functional Source License, Version 1.1,
-with Apache-2.0 as the future license (SPDX `FSL-1.1-Apache-2.0`); see
+with Apache-2.0 as the future license (SPDX `FSL-1.1-ALv2`); see
 [`LICENSE`](LICENSE). The licensor is Moose Labs Ltd. Each version becomes
 available under Apache-2.0 two years after it is made available.
 

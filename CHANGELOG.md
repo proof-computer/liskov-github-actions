@@ -7,6 +7,9 @@
   manifest if the gateway cannot serve the exact local artifact bytes within
   four attempts.
 
+- The SPDX license identifier is now `FSL-1.1-ALv2`. The license terms are unchanged
+  (ADR-0317).
+
 ## v2.3.1
 
 - **Liskov uploads send only the `file` part.** The `ipfs-pin` default path
