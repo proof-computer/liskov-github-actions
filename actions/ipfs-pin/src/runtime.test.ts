@@ -129,6 +129,73 @@ test("existing CID skips upload and exact gateway verification compares local by
   }
 });
 
+const proofGatewayRead = "https://ipfs-upload.liskov.proof.computer/ipfs/QmExistingArtifactCid";
+
+for (const endpoint of ["", "https://ipfs.example"]) {
+  test(`existing CID verifies exact bytes through PROOF's default gateway (proxy ${endpoint ? "configured" : "absent"})`, async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "liskov-ipfs-reuse-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    await writeFile(path.join(root, "artifact.zip"), preparedBytes);
+    const requests: string[] = [];
+    const result = await runIpfsPin({
+      ...baseInputs(root),
+      endpoint,
+      artifactPath: "artifact.zip",
+      scriptIpfs: "ipfs://QmExistingArtifactCid"
+    }, {
+      fetchImpl: async (input, init) => {
+        const request = new Request(input, init);
+        requests.push(`${request.method} ${request.url}`);
+        return new Response(preparedBytes);
+      },
+      getIdToken: async () => { assert.fail("reused must not mint OIDC"); },
+      now: () => new Date("2026-08-01T19:00:00.000Z"),
+      sleep: async () => { assert.fail("matching bytes need no retry"); },
+      environment: {}
+    });
+
+    assert.deepEqual(requests, [`GET ${proofGatewayRead}`]);
+    assert.equal(result.uploadPerformed, false);
+    assert.equal(result.uploadPath, "reused");
+    assert.equal(result.digest, `sha256:${sha256(preparedBytes)}`);
+    assert.equal(result.manifestPath, path.join(root, "diagnostic-script-manifest.json"));
+    assert.equal(JSON.parse(await readFile(result.manifestPath, "utf8")).scriptHash, result.digest);
+  });
+}
+
+for (const { scenario, status, error } of [
+  { scenario: "a byte mismatch", status: 200, error: /failed after 4 attempts.*gateway bytes mismatch/u },
+  { scenario: "HTTP 404", status: 404, error: /failed after 4 attempts.*HTTP 404/u }
+]) {
+  test(`existing CID verification fails before manifest creation on ${scenario}`, async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "liskov-ipfs-reuse-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    await writeFile(path.join(root, "artifact.zip"), preparedBytes);
+    const requests: string[] = [];
+    const delays: number[] = [];
+    await assert.rejects(runIpfsPin({
+      ...baseInputs(root),
+      endpoint: "",
+      artifactPath: "artifact.zip",
+      scriptIpfs: "ipfs://QmExistingArtifactCid"
+    }, {
+      fetchImpl: async (input, init) => {
+        const request = new Request(input, init);
+        requests.push(`${request.method} ${request.url}`);
+        return new Response("different", { status });
+      },
+      getIdToken: async () => { assert.fail("reused must not mint OIDC"); },
+      now: () => new Date("2026-08-01T19:00:00.000Z"),
+      sleep: async (milliseconds) => { delays.push(milliseconds); },
+      environment: {}
+    }), error);
+
+    assert.deepEqual(requests, Array(4).fill(`GET ${proofGatewayRead}`));
+    assert.deepEqual(delays, [10_000, 10_000, 10_000]);
+    await assert.rejects(readFile(path.join(root, "diagnostic-script-manifest.json")), { code: "ENOENT" });
+  });
+}
+
 const uploadIntent = {
   ok: true, uploadId: "upl-default", token: "upload-key",
   upload: { url: "https://upload.example/pinning/pinFileToIPFS", method: "POST", field: "file" },

@@ -1,4 +1,7 @@
 export const DEFAULT_LISKOV_URL = "https://api.liskov.proof.computer";
+// Mirrors LISKOV_IPFS_UPLOAD_URL in liskov-rs fly.liskov-api.toml and the
+// intent's /ipfs/{cid} template. Reuse does not need an upload intent.
+export const DEFAULT_PROOF_GATEWAY_URL = "https://ipfs-upload.liskov.proof.computer/ipfs/{cid}";
 export const DEFAULT_UPLOAD_AUDIENCE = "liskov-artifact-upload";
 
 export interface UploadIntentInputs {

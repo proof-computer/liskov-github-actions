@@ -51,11 +51,11 @@ inputs:
     required: false
     default: ""
   script-ipfs:
-    description: "Optional existing exact ipfs:// CID. Skips upload but still hashes the local artifact bytes."
+    description: "Reuse an exact ipfs:// CID and verify it matches the local artifact bytes through PROOF's gateway by default. Skips upload."
     required: false
     default: ""
   gateway-url:
-    description: "Override the Liskov intent's gateway template, or opt into proxy/reused byte verification. Credential-free HTTPS URL; {cid} is replaced and bytes must match (4 attempts, 10s apart)."
+    description: "Override the gateway for Liskov uploads or CID reuse, or enable verification for proxy uploads. Use a credential-free HTTPS URL. The action replaces {cid} and checks for matching bytes in up to 4 attempts, 10s apart."
     required: false
     default: ""
   ipfs-endpoint:

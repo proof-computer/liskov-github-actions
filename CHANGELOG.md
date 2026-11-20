@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **Reused IPFS CIDs are verified through PROOF's gateway by default.**
+  Set `ipfs-gateway-url` to override it. The pin step fails before writing a
+  manifest if the gateway cannot serve the exact local artifact bytes within
+  four attempts.
+
 ## v2.3.1
 
 - **Liskov uploads send only the `file` part.** The `ipfs-pin` default path
