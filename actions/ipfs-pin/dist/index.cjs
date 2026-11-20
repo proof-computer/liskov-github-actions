@@ -22661,6 +22661,7 @@ function sha256(bytes) {
 
 // actions/ipfs-pin/src/liskov-upload.ts
 var DEFAULT_LISKOV_URL = "https://api.liskov.proof.computer";
+var DEFAULT_PROOF_GATEWAY_URL = "https://ipfs-upload.liskov.proof.computer/ipfs/{cid}";
 var DEFAULT_UPLOAD_AUDIENCE = "liskov-artifact-upload";
 async function requestUploadIntent(inputs, dependencies) {
   if (!inputs.organizationId.trim()) throw new Error("organization-id is required for Liskov uploads");
@@ -22923,6 +22924,7 @@ async function runIpfsPin(inputs, dependencies = DEFAULT_DEPENDENCIES) {
   if (suppliedCid) {
     scriptIpfs = validateScriptIpfs(suppliedCid);
     uploadPath = "reused";
+    gatewayUrl ||= DEFAULT_PROOF_GATEWAY_URL;
   } else if (inputs.endpoint.trim()) {
     scriptIpfs = await uploadArtifact(artifactBytes, inputs, dependencies.fetchImpl, "proxy");
     uploadPath = "proxy";

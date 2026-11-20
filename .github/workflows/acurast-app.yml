@@ -112,7 +112,7 @@ on:
         type: string
         default: ""
       script-ipfs:
-        description: "Optional existing exact ipfs:// CID; skips upload while retaining local hashing."
+        description: "Reuse an exact ipfs:// CID and verify it matches the local artifact bytes through PROOF's gateway by default. Skips upload."
         required: false
         type: string
         default: ""
@@ -122,7 +122,7 @@ on:
         type: string
         default: ""
       ipfs-gateway-url:
-        description: "Optional credential-free HTTPS gateway URL for exact byte verification; supports {cid} and retries 4 times with 10s delay."
+        description: "Override the gateway for Liskov uploads or CID reuse, or enable verification for proxy uploads. Use a credential-free HTTPS URL with optional {cid}. Verification makes up to 4 attempts, 10s apart."
         required: false
         type: string
         default: ""

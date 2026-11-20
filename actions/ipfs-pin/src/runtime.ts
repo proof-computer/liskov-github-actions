@@ -4,7 +4,12 @@ import path from "node:path";
 
 import AdmZip from "adm-zip";
 import { encryptedCodeZip, ENCRYPTED_CODE_MODE } from "./encrypted-code.js";
-import { DEFAULT_LISKOV_URL, DEFAULT_UPLOAD_AUDIENCE, requestUploadIntent } from "./liskov-upload.js";
+import {
+  DEFAULT_LISKOV_URL,
+  DEFAULT_PROOF_GATEWAY_URL,
+  DEFAULT_UPLOAD_AUDIENCE,
+  requestUploadIntent
+} from "./liskov-upload.js";
 import { requireValidPolicyManifest } from "../../shared/src/policy-contract.js";
 
 import {
@@ -102,6 +107,7 @@ export async function runIpfsPin(
   if (suppliedCid) {
     scriptIpfs = validateScriptIpfs(suppliedCid);
     uploadPath = "reused";
+    gatewayUrl ||= DEFAULT_PROOF_GATEWAY_URL;
   } else if (inputs.endpoint.trim()) {
     scriptIpfs = await uploadArtifact(artifactBytes, inputs, dependencies.fetchImpl, "proxy");
     uploadPath = "proxy";

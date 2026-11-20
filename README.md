@@ -9,9 +9,6 @@ inline scripts).
 
 ### `acurast-app.yml` — build → IPFS-pin → OIDC attest
 
-The Liskov upload default described here is pending the next `v2.x.0` release
-and movement of `v2`; this source change does not cut a release.
-
 ```yaml
 # .github/workflows/<app>.yml in an Acurast app repo
 on:
@@ -39,7 +36,7 @@ the generated-zip inputs with `app-id`, `authored-manifest-path`,
 and `pin-url`. The workflow exposes the CID, digest, uploaded build-manifest path,
 artifact-version IDs, per-Application result JSON, and target count.
 
-With `ipfs-endpoint` empty, `ipfs-pin` uses GitHub OIDC (audience
+When uploading with `ipfs-endpoint` empty, `ipfs-pin` uses GitHub OIDC (audience
 `liskov-artifact-upload`, requiring `permissions: id-token: write`) to request a
 single-use token from
 `<liskov-url>/api/organizations/<organization-id>/applications/<app-id>/artifact-upload-intents`.
@@ -67,12 +64,14 @@ optional `devtools` (`enabled`, `injected`, and `uploadMode: "direct"`), `artifa
 and `scenarioArtifact`. Unknown fields and unsafe paths fail closed. OIDC claims,
 repository identity, refs, and workflow identity never come from this sidecar.
 
-`script-ipfs` reuses an exact `ipfs://CID` without another upload while still hashing
-the local bytes. Set `ipfs-gateway-url` to a credential-free HTTPS URL (with optional
-`{cid}`) to override Liskov's gateway or opt into proxy/reused byte verification.
-Verification allows four propagation
-attempts with ten seconds between attempts. The build manifest is always uploaded as
-a GitHub Actions run artifact.
+`script-ipfs` reuses an exact `ipfs://CID` without another upload. The pin step
+fetches the CID through PROOF's gateway by default and requires an exact match
+with the local artifact bytes. Set `ipfs-gateway-url` to a credential-free HTTPS
+URL (with optional `{cid}`) to override the gateway for a Liskov upload or reused
+CID, or to enable verification for a proxy upload. Verification makes up to four
+attempts, ten seconds apart. The pin step fails before writing the build manifest
+if verification fails. The workflow uploads the resulting manifest as a GitHub
+Actions run artifact.
 
 For one prepared artifact shared by multiple Applications, set
 `artifact-targets-path` instead of `authored-manifest-path`. It is a repository-root
@@ -277,7 +276,7 @@ Compose your own job from these (`uses: proof-computer/liskov-github-actions/act
 | --- | --- | --- |
 | `setup` | composite | pnpm + Node + `install --frozen-lockfile` |
 | `acurast-build` | composite | `typecheck → test → build` (+ optional `smoke`) |
-| `ipfs-pin` | JS | generate/read exact bytes → Liskov OIDC upload + PROOF gateway verification (explicit `ipfs-endpoint` selects proxy), or reuse CID → `cid`/`digest`/`manifest-path`/`upload-id`/`upload-path` |
+| `ipfs-pin` | JS | generate/read exact bytes → Liskov OIDC upload or CID reuse with PROOF gateway verification by default (explicit `ipfs-endpoint` selects proxy for uploads) → `cid`/`digest`/`manifest-path`/`upload-id`/`upload-path` |
 | `artifact-pin-attest` | JS | OIDC → one or more manifest-bound `POST /api/applications/<id>/artifact-pins/github` calls |
 | `marketplace-ingest` | JS | OIDC → `POST /api/marketplace/ingest` |
 | `runtime-image-upload` | JS | Hash → scoped Tigris upload bound to a V5 source document (`manifest-path`) → fresh-OIDC finalize → publication evidence outputs |
