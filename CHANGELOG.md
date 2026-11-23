@@ -1,11 +1,15 @@
 # Changelog
 
-## Unreleased
+## v2.4.0
 
 - **Reused IPFS CIDs are verified through PROOF's gateway by default.**
   Set `ipfs-gateway-url` to override it. The pin step fails before writing a
   manifest if the gateway cannot serve the exact local artifact bytes within
   four attempts.
+
+- The vendored policy-client bundle is the V6 contract, which refuses an
+  authored booking (BKLG-20261107-rs1z, BKLG-20261118-b0q6). V5 callers are
+  unchanged.
 
 - The SPDX license identifier is now `FSL-1.1-ALv2`. The license terms are unchanged
   (ADR-0317).
