@@ -22,16 +22,18 @@ const corpus = JSON.parse(readFileSync(path.join(directory, "policy-client-confo
   unknown: { request: Record<string, unknown> };
 };
 
-// BKLG-20261118-b0q6: complete bundle from BKLG-20261118-pztg's merged
-// liskov-rs commit 4473cf26b26f4ed6d2960b086506254fe4d7dea3 (ADR-0063).
-const vendoredProducerCommit = "4473cf26b26f4ed6d2960b086506254fe4d7dea3";
-test("vendored V6 bundle retains the exact producer manifest and artifact hashes", () => {
+// BKLG-20261123-i021: liskov-rs main at packet claim (ADR-0063).
+const vendoredProducerCommit = "bf93a1f675f3adbf5ff1abefc62fb3b24bb33d7c";
+test("vendored bundle retains the exact producer manifest and artifact hashes", () => {
   const digest = (bytes: Buffer) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
   const manifestBytes = readFileSync(path.join(directory, "policy-client-bundle.json"));
-  assert.equal(vendoredProducerCommit, "4473cf26b26f4ed6d2960b086506254fe4d7dea3");
-  assert.equal(digest(manifestBytes), "sha256:54bd5f14b62fa425915045cb414326bb9cc1b6ea0dbed60d0e6fac30ebd67dc0");
+  assert.equal(
+    digest(manifestBytes),
+    "sha256:d081e6de316015b58e2be8eb9bddd63cbc3a345955be13eb85e87a33637d7e9a",
+    `bundle manifest from liskov-rs ${vendoredProducerCommit}`
+  );
   const manifest = JSON.parse(manifestBytes.toString("utf8"));
-  assert.equal(manifest.sourceDigest, "sha256:199861f912ffab4e6e12a250248117c11074f42328dd571acccb5c0ac1608c29");
+  assert.equal(manifest.sourceDigest, "sha256:1da16ea6817fde65dfe19ff2f06510d2255b309890e113846d89c076924733f1");
   for (const key of ["artifact", "adapter", "types", "conformance"]) {
     const entry = manifest[key];
     assert.equal(digest(readFileSync(path.join(directory, entry.file))), entry.sha256, key);
@@ -117,7 +119,7 @@ function v6PlacementDocument(placement: Record<string, unknown>, jobs = 2): Reco
   return document;
 }
 
-test("V6 country allow/exclude and manager/country spread validate without source publication", () => {
+test("V6 country allow/exclude and manager/country spread validate for source publication", () => {
   for (const placement of [
     { allow: [{ by: "country", values: ["DE", "CH"] }] },
     { exclude: [{ by: "country", values: ["US"] }] },
@@ -140,7 +142,7 @@ test("V6 country allow/exclude and manager/country spread validate without sourc
     assert.equal(result.disposition, "supported");
     assert.equal(result.valid, true, JSON.stringify(result.errors));
     assert.deepEqual((result.document?.deployment as Record<string, unknown>).placement, placement);
-    assert.equal(supportsRegisteredSourcePublication(result), false);
+    assert.equal(supportsRegisteredSourcePublication(result), true);
   }
 });
 
@@ -182,18 +184,22 @@ test("V6 refuses an authored deployment reservation block as an unknown field", 
     assert.equal("booking" in without.deployment, false);
     const accepted = evaluatePolicyManifest(without);
     assert.equal(accepted.valid, true, JSON.stringify(accepted.errors));
-    assert.equal(supportsRegisteredSourcePublication(accepted), false);
+    assert.equal(supportsRegisteredSourcePublication(accepted), true);
   }
 });
 
-test("V5 remains the only registered source-publication pair, with V6 and V7 unpublished", () => {
+test("the owner bundle registers exactly V5 and V6 for source publication", () => {
   const manifest = JSON.parse(readFileSync(path.join(directory, "policy-client-bundle.json"), "utf8"));
   assert.deepEqual(manifest.publicationPairs, [
-    { schema: "proof.liskov.application-manifest", schemaVersion: 5, releaseMode: "source" }
+    { schema: "proof.liskov.application-manifest", schemaVersion: 5, releaseMode: "source" },
+    { schema: "proof.liskov.application-manifest", schemaVersion: 6, releaseMode: "source" }
   ]);
-  const document = v6PlacementDocument({ allow: [{ by: "country", values: ["DE"] }] });
-  document.schemaVersion = 7;
-  const result = evaluatePolicyManifest(document);
-  assert.equal(result.valid, true, JSON.stringify(result.errors));
-  assert.equal(supportsRegisteredSourcePublication(result), false);
+  const v6 = v6PlacementDocument({ allow: [{ by: "country", values: ["DE"] }] });
+  const registered = evaluatePolicyManifest(v6);
+  assert.equal(registered.valid, true, JSON.stringify(registered.errors));
+  assert.equal(supportsRegisteredSourcePublication(registered), true);
+
+  const unregistered = evaluatePolicyManifest({ ...v6, schemaVersion: 7 });
+  assert.equal(unregistered.valid, true, JSON.stringify(unregistered.errors));
+  assert.equal(supportsRegisteredSourcePublication(unregistered), false);
 });
