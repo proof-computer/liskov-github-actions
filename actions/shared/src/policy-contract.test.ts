@@ -22,18 +22,18 @@ const corpus = JSON.parse(readFileSync(path.join(directory, "policy-client-confo
   unknown: { request: Record<string, unknown> };
 };
 
-// BKLG-20261123-i021: liskov-rs main at packet claim (ADR-0063).
-const vendoredProducerCommit = "bf93a1f675f3adbf5ff1abefc62fb3b24bb33d7c";
+// BKLG-20261126-jxd4: liskov-rs main at packet claim (ADR-0063).
+const vendoredProducerCommit = "bbb0dbe79178a0bf74f048c664c52b5e91697697";
 test("vendored bundle retains the exact producer manifest and artifact hashes", () => {
   const digest = (bytes: Buffer) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
   const manifestBytes = readFileSync(path.join(directory, "policy-client-bundle.json"));
   assert.equal(
     digest(manifestBytes),
-    "sha256:d081e6de316015b58e2be8eb9bddd63cbc3a345955be13eb85e87a33637d7e9a",
+    "sha256:d2e4460aa9af497e0e0f638e470fa623bb8d50efce976fab9f721b4b7b513590",
     `bundle manifest from liskov-rs ${vendoredProducerCommit}`
   );
   const manifest = JSON.parse(manifestBytes.toString("utf8"));
-  assert.equal(manifest.sourceDigest, "sha256:1da16ea6817fde65dfe19ff2f06510d2255b309890e113846d89c076924733f1");
+  assert.equal(manifest.sourceDigest, "sha256:4f5cba9d543ac34938f52d388f0ccbb5b8e1d457536386c6f0459ffd4c65249b");
   for (const key of ["artifact", "adapter", "types", "conformance"]) {
     const entry = manifest[key];
     assert.equal(digest(readFileSync(path.join(directory, entry.file))), entry.sha256, key);
@@ -187,6 +187,61 @@ test("V6 refuses an authored deployment reservation block as an unknown field", 
     assert.equal(supportsRegisteredSourcePublication(accepted), true);
   }
 });
+
+const nativeV6Source = {
+  schema: "proof.liskov.application-manifest",
+  schemaVersion: 6,
+  applicationId: "native-health",
+  release: { mode: "source" },
+  runtime: {
+    kind: "native_image",
+    image: { name: "debian-trixie", version: "0.1" },
+    entrypoint: { executable: "/bin/sh" }
+  },
+  execution: { mode: "once" },
+  deployment: {
+    schedule: { duration: "30m" },
+    spend: { unit: "service_credit_micros", perJob: "1000000" }
+  },
+  integrations: { tailscale: "int_0123456789abcdef0123456789abcdef" },
+  state: { mode: "off" }
+};
+
+const nativeV6Service = {
+  name: "api",
+  localPort: 8080,
+  endpoints: [{ name: "private", provider: { kind: "tailscale" } }]
+};
+
+for (const { name, service, pointer } of [
+  {
+    name: "missing service health",
+    service: nativeV6Service,
+    pointer: "/ingress/api/health"
+  },
+  {
+    name: "an exec readiness probe",
+    service: { ...nativeV6Service, health: { ready: { exec: ["/bin/check"] } } },
+    pointer: "/ingress/api/health/ready"
+  }
+]) {
+  test(`V6 native ingress refuses ${name} and accepts a TCP probe`, () => {
+    const authored = { ...nativeV6Source, ingress: { http: [service] } };
+    const refused = evaluatePolicyManifest(authored);
+    assert.equal(refused.valid, false, JSON.stringify(refused.errors));
+    assert.deepEqual(
+      refused.errors.map(({ code, pointer }) => ({ code, pointer })),
+      [{ code: "invalid_manifest", pointer }]
+    );
+
+    const accepted = evaluatePolicyManifest({
+      ...authored,
+      ingress: { http: [{ ...service, health: { ready: { tcp: service.localPort } } }] }
+    });
+    assert.equal(accepted.valid, true, JSON.stringify(accepted.errors));
+    assert.equal(supportsRegisteredSourcePublication(accepted), true);
+  });
+}
 
 test("the owner bundle registers exactly V5 and V6 for source publication", () => {
   const manifest = JSON.parse(readFileSync(path.join(directory, "policy-client-bundle.json"), "utf8"));
